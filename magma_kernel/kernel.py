@@ -59,11 +59,11 @@ class MagmaKernel(Kernel):
         sig = signal.signal(signal.SIGINT, signal.SIG_DFL)
         try:
             magma = spawn('magma', echo=False, encoding='utf-8')
-            magma.expect('> ')
-            magma.sendline('SetLineEditor(false);')
-            magma.expect('> ')
-            magma.sendline('')
-            self.magmawrapper = replwrap.REPLWrapper(magma, '> ', 'SetPrompt("{}");')
+            magma.expect(u'> ')
+            magma.sendline(u'SetLineEditor(false);')
+            magma.expect(u'> ')
+            magma.sendline(u'')
+            self.magmawrapper = replwrap.REPLWrapper(magma, u'> ', u'SetPrompt("{}");')
         finally:
             signal.signal(signal.SIGINT, sig)
 
