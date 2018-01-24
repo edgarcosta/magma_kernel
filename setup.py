@@ -36,7 +36,7 @@ setup(
     ], # classifiers list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
     keywords = "magma kernel jupyter",
     setup_requires=[], # currently useless, see https://www.python.org/dev/peps/pep-0518/
-    install_requires=['pexpect'],
+    install_requires=['pexpect>=4.0'],
     packages=["magma_kernel"],
     include_package_data = True,
 )
