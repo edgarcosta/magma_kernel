@@ -1,3 +1,4 @@
 """A magma kernel for Jupyter"""
 
-__version__ = '0.0.1.dev1'
+from kernel import __version__
+assert __version__ #silence pyflakes
