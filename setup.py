@@ -23,7 +23,7 @@ setup(
     license="BSD 3-Clause License",
     description="A magma kernel for Jupyter",
     long_description = readfile("README.rst"), # get the long description from the README
-    version = magma_kernel_version,
+    version = readfile("VERSION"),
     classifiers=[
       # How mature is this project? Common values are
       #   3 - Alpha

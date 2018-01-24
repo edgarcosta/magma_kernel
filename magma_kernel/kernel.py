@@ -7,8 +7,10 @@ import re
 import signal
 import bisect
 
-__version__ = '0.0.1.dev1'
-
+def readfile(filename):
+    with open(filename,  encoding='utf-8') as f:
+        return f.read()
+__version__ = readfile(path.join(path.dirname(__file__), 'VERSION'));
 version_pat = re.compile(r'version (\d+(\.\d+)+)')
 
 
