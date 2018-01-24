@@ -104,9 +104,10 @@ class MagmaKernel(Kernel):
         tokens = code.replace(';', ' ').split();
         if not tokens:
             return default;
+        token = tokens[-1];
 
-        low = bisect.bisect_left(self._magma_builtins, code);
-        high = bisect.bisect_right(self._magma_builtins, code+chr(127), low); #very hacky
+        low = bisect.bisect_left(self._magma_builtins, token);
+        high = bisect.bisect_right(self._magma_builtins, token+chr(127), low); #very hacky
         matches = self._magma_builtins[low:high];
 
         #TODO add global variables
