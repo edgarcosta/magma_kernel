@@ -3,6 +3,7 @@ from pexpect import replwrap, EOF, spawn
 
 from subprocess import check_output
 
+from os import path
 import re
 import signal
 import bisect

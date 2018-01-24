@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 ## -*- encoding: utf-8 -*-
 
-import os
 import sys
 from setuptools import setup
 from codecs import open # To open the README file with proper encoding
-from setuptools.command.test import test as TestCommand # for tests
-from setuptools.extension import Extension
+#from setuptools.command.test import test as TestCommand # for tests
+#from setuptools.extension import Extension
 
 # Get information from separate files (README, VERSION)
 def readfile(filename):
