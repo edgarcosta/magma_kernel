@@ -8,6 +8,7 @@ import re
 import signal
 import bisect
 
+from codecs import open
 def readfile(filename):
     with open(filename,  encoding='utf-8') as f:
         return f.read()
