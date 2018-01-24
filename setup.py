@@ -13,7 +13,6 @@ def readfile(filename):
     with open(filename,  encoding='utf-8') as f:
         return f.read()
 
-from magma_kernel import __version__ as magma_kernel_version
 
 setup(
     name="magma_kernel",
