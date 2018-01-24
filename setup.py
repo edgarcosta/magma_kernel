@@ -27,7 +27,7 @@ setup(
     url="https://github.com/edgarcosta/magma_kernel",
     license="BSD 3-Clause License",
     description="A magma kernel for Jupyter",
-    long_description = readfile("README.rst"), # get the long description from the README
+    long_description = readfile("README.md"), # get the long description from the README
     version = readfile("VERSION"),
     classifiers=[
       # How mature is this project? Common values are
