@@ -51,7 +51,8 @@ class MagmaKernel(Kernel):
             magma.sendline(u'SetLineEditor(false);')
             magma.expect(u'> ')
             magma.sendline(u'')
-            self.magmawrapper = replwrap.REPLWrapper(magma, u'> ', u'SetPrompt("{}");')
+            self.magmawrapper = replwrap.REPLWrapper(magma,
+                    u'> ', u'SetPrompt("{}");')
         finally:
             signal.signal(signal.SIGINT, sig)
 
@@ -100,11 +101,19 @@ class MagmaKernel(Kernel):
             self._magma_builtins = F.read().split('\n');
             F.close();
 
+        tokens = code.replace(';', ' ').split();
+        if not tokens:
+            return default;
+
         low = bisect.bisect_left(self._magma_builtins, code);
         high = bisect.bisect_right(self._magma_builtins, code+chr(127), low); #very hacky
         matches = self._magma_builtins[low:high];
+
+        #TODO add global variables
+
         if not matches:
-            return default
+            return default;
+
         return  {'matches': matches, 'cursor_start': 0,
                    'cursor_end': cursor_pos, 'metadata': dict(),
                    'status': 'ok'};
