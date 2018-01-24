@@ -1,0 +1,10 @@
+[build-system]
+requires = ["flit"]
+build-backend = "flit.buildapi"
+
+[tool.flit.metadata]
+module = "magma_kernel"
+author = "Edgar Costa"
+author-email = "edgarcosta@math.dartmouth.edu"
+home-page = "https://github.com/edgarcosta/magma_kernel/"
+
