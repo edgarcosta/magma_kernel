@@ -12,6 +12,10 @@ def readfile(filename):
     with open(filename,  encoding='utf-8') as f:
         return f.read()
 
+class install(_install):
+    def run(self):
+        from magma_kernel.install import main
+        main(argv=sys.argv)
 
 setup(
     name="magma_kernel",
@@ -38,7 +42,7 @@ setup(
     install_requires=['pexpect>=4.0'],
     packages=["magma_kernel"],
     include_package_data = True,
+    cmdclass={'install': install},
 )
 
-from magma_kernel.install import main
-main(argv=sys.argv)
+
