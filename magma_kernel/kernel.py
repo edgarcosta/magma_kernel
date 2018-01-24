@@ -10,7 +10,7 @@ import re
 import signal
 import urllib
 
-__version__ = '0.0.1dev1'
+__version__ = '0.0.1.dev1'
 
 version_pat = re.compile(r'version (\d+(\.\d+)+)')
 
