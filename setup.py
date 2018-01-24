@@ -45,7 +45,7 @@ setup(
     install_requires=['pexpect>=4.0'],
     packages=["magma_kernel"],
     package_dir={"magma_kernel": "magma_kernel"}
-           , package_data={"magma_kernel": ["magma_kernel/*"]},
+           , package_data={"magma_kernel": ["*"]},
     include_package_data = True,
     cmdclass={'install': install},
 )
