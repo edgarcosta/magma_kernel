@@ -2,7 +2,7 @@
 
 A simple IPython kernel for magma.
 
-<img src="https://raw.githubusercontent.com/edgarcosta/i/master/vim-plug/magma_kernel.gif" height="450">
+<img src="https://raw.githubusercontent.com/edgarcosta/i/master/magma_kernel.gif" height="450">
 
 ## Installation
 You can `magma_kernel` by doing
