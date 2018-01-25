@@ -108,9 +108,11 @@ class MagmaKernel(Kernel):
         if not tokens:
             return default;
         token = tokens[-1];
+        start = cursor_pos - len(token);
 
         low = bisect.bisect_left(self._magma_builtins, token);
-        high = bisect.bisect_right(self._magma_builtins, token+chr(127), low); #very hacky
+        #very hacky
+        high = bisect.bisect_right(self._magma_builtins, token+chr(127), low); 
         matches = self._magma_builtins[low:high];
 
         #TODO add global variables
@@ -118,7 +120,7 @@ class MagmaKernel(Kernel):
         if not matches:
             return default;
 
-        return  {'matches': matches, 'cursor_start': 0,
+        return  {'matches': matches, 'cursor_start': start,
                    'cursor_end': cursor_pos, 'metadata': dict(),
                    'status': 'ok'};
 
