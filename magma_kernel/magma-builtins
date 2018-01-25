@@ -190,6 +190,7 @@ AffineSigmaLinearGroup
 AffineSigmaSymplecticGroup
 AffineSpace
 AffineSpecialLinearGroup
+AffineSplitExtension
 AffineSymplecticGroup
 Agemo
 Aggr
@@ -279,6 +280,7 @@ AllSlopes
 AllSolvableLieAlgebras
 AllSqrts
 AllSquareRoots
+AllSubgroups
 AllTangents
 AllVertices
 Alldeg
@@ -477,6 +479,7 @@ AutomorphismGroupMatchingIdempotents
 AutomorphismGroupOverCyclotomicExtension
 AutomorphismGroupOverExtension
 AutomorphismGroupOverQ
+AutomorphismGroupSimpleGroup
 AutomorphismGroupSolubleGroup
 AutomorphismGroupStabilizer
 AutomorphismOmega
@@ -624,6 +627,7 @@ BettiNumber
 BettiNumbers
 BettiTable
 Between
+Bezoutian
 Bianchi
 BianchiCuspForms
 Bicomponents
@@ -785,6 +789,7 @@ CanIdentifyGroup
 CanNormalize
 CanRedoEnumeration
 CanSignNormalize
+Cancellation
 Canonical
 CanonicalBasis
 CanonicalClass
@@ -1023,6 +1028,7 @@ ClassRepresentativesGOMinus
 ClassRepresentativesGOPlus
 ClassRepresentativesSp
 ClassTwo
+Classes
 Classes
 ClassesCSp
 ClassesData
@@ -1712,6 +1718,7 @@ DeepHoles
 Def
 DefRing
 Default
+Defect
 Deficient
 Defined
 Defines
@@ -2877,6 +2884,7 @@ GenusContribution
 GenusField
 GenusOneModel
 GenusRepresentatives
+GenusSymbol
 Geodesic
 GeodesicExists
 Geodesics
@@ -2902,6 +2910,7 @@ GetBeep
 GetCells
 GetColumns
 GetCurrentDirectory
+GetDate
 GetDefaultRealField
 GetEchoInput
 GetElementPrintFormat
@@ -2934,6 +2943,7 @@ GetPrecision
 GetPresentation
 GetPreviousSize
 GetPrintLevel
+GetProfile
 GetPrompt
 GetRep
 GetRows
@@ -2971,8 +2981,11 @@ Golay
 GolayCode
 GolayCodeZ4
 Gonal
+Gonality
+GonalityPreservingLift
 Good
 GoodBasePoints
+GoodBasisOfNormGenerators
 GoodLDPCEnsemble
 Goppa
 GoppaCode
@@ -3100,6 +3113,10 @@ GrphRes
 Guardian
 Guess
 GuessAltsymDegree
+H1
+H1Dimension
+H1DimensionExteriorSquare
+H1DimensionSymmetricSquare
 H2
 HBinomial
 HE
@@ -3228,6 +3245,7 @@ HasSparseRepOnly
 HasSquareSha
 HasStringProperty
 HasSupplement
+HasTotallyPositiveGenerator
 HasTwistedHopfStructure
 HasValidCosetTable
 HasValidIndex
@@ -3238,6 +3256,7 @@ Hasp
 HaspQuotientDefinitions
 HaspQuotientDefinitions
 Hasse
+HasseInvariant
 HasseMinkowskiInvariant
 HasseMinkowskiInvariants
 HasseWittInvariant
@@ -3436,6 +3455,7 @@ HypergeometricMotiveClearTable
 HypergeometricMotiveSaveLimit
 HypergeometricSeries
 HypergeometricSeries2F1
+HypergeometricTrace
 HypergeometricU
 Hyperplane
 HyperplaneAtInfinity
@@ -3683,6 +3703,8 @@ Integrally
 InteractiveUserAttributes
 Interior
 InteriorPoints
+Intermediate
+IntermediateSubgroups
 Internal
 InternalEdges
 Interpolate
@@ -3754,6 +3776,7 @@ IrredMat
 Irreducibility
 Irreducible
 IrreducibleCartanMatrix
+IrreducibleComponents
 IrreducibleCoxeter
 IrreducibleCoxeterGraph
 IrreducibleCoxeterGroup
@@ -3779,7 +3802,6 @@ IrreducibleSimpleSubalgebraTreeSU
 IrreducibleSimpleSubalgebraTreeSU
 IrreducibleSimpleSubalgebrasOfSU
 IrreducibleSimpleSubalgebrasOfSU
-IrreducibleSolubleSubgroups
 IrreducibleSparseGF2Polynomial
 IrreducibleSparseGF2Polynomial
 IrreducibleSubgroups
@@ -4061,6 +4083,7 @@ IsInduced
 IsInert
 IsInertial
 IsInfinite
+IsInfiniteFPGroup
 IsInflectionPoint
 IsInformationSet
 IsInjective
@@ -4094,6 +4117,7 @@ IsIsomorphicSmallPeriodMatrices
 IsIsomorphicSolubleGroup
 IsIsomorphicWithTwist
 IsIsomorphism
+IsIsotropic
 IsKEdgeConnected
 IsKVertexConnected
 IsKnownIsomorphic
@@ -4124,7 +4148,9 @@ IsLinearlyIndependent
 IsLittlewoodRichardson
 IsLocalIdeal
 IsLocalNorm
+IsLocalSquare
 IsLocallyFree
+IsLocallyIsometric
 IsLocallySoluble
 IsLocallySolvable
 IsLocallyTwoTransitive
@@ -4135,6 +4161,7 @@ IsMDS
 IsMagmaEuclideanRing
 IsMatrixRing
 IsMaximal
+IsMaximalIntegral
 IsMaximisingFunction
 IsMaximumDimensional
 IsMaximumDistanceSeparable
@@ -4280,6 +4307,7 @@ IsRamified
 IsRational
 IsRationalCurve
 IsRationalFunctionField
+IsRationallyEquivalent
 IsReal
 IsRealReflectionGroup
 IsRealisableOverSmallerField
@@ -4319,6 +4347,7 @@ IsSLZConjugate
 IsSPrincipal
 IsSUnit
 IsSUnitWithPreimage
+IsSameGenus
 IsSatisfied
 IsSaturated
 IsScalar
@@ -4550,6 +4579,8 @@ IspMinimal
 IspNormal
 IspSubalgebra
 Isqrt
+Iterated
+IteratedNeighbours
 J2
 JBessel
 JH
@@ -4586,6 +4617,7 @@ Johnson
 JohnsonBound
 Join
 Jordan
+JordanDecomposition
 JordanForm
 JordanSpinAlgebra
 JordanTripleProduct
@@ -4724,7 +4756,10 @@ LLLGramMatrix
 LLLPolFact
 LLLUsage
 LLLXGCD
+LMFDBIdeal
+LMFDBLabel
 LMG
+LMGBase
 LMGCenter
 LMGCentraliser
 LMGCentralizer
@@ -5028,10 +5063,12 @@ Lix4
 Lix5
 Ljunggren
 Local
+LocalBasis
 LocalBlowUp
 LocalComponent
 LocalCoxeterGroup
 LocalDegree
+LocalFactor
 LocalFactorization
 LocalField
 LocalGenera
@@ -5039,6 +5076,7 @@ LocalGlobal
 LocalHeight
 LocalIdeal
 LocalInformation
+LocalMultiplicativeGroupModSquares
 LocalPolynomialAlgebra
 LocalPolynomialRing
 LocalQuotient
@@ -5176,7 +5214,9 @@ MaximalIdempotent
 MaximalIncreasingSequence
 MaximalIncreasingSequences
 MaximalIntegerSolution
+MaximalIntegralLattice
 MaximalLeftIdeals
+MaximalNormSplitting
 MaximalNormalSubgroup
 MaximalNumberOfCosets
 MaximalOrder
@@ -5612,6 +5652,7 @@ NextSubgroup
 NextVector
 Ngens
 Nice
+NiceUnitSquareClassRepresentative
 NilpOrbGenuine
 Nilpotency
 NilpotencyClass
@@ -5737,6 +5778,7 @@ Number
 NumberField
 NumberFieldDatabase
 NumberFieldLattice
+NumberFieldLatticeWithGram
 NumberFieldSieve
 NumberFields
 NumberOfActionGenerators
@@ -6318,6 +6360,7 @@ Presentation
 PresentationIsSmall
 PresentationLength
 PresentationMatrix
+Preserving
 Pretty
 PrettyPrintInvariant
 Previous
@@ -6466,6 +6509,7 @@ Properties
 Property
 Proportional
 Prospector
+ProveInf1
 Pruefer
 PrueferRankBound
 Prune
@@ -6556,6 +6600,7 @@ Quadrant
 Quadratic
 QuadraticCharacter
 QuadraticClassGroupTwoPart
+QuadraticDefect
 QuadraticField
 QuadraticForm
 QuadraticFormMatrix
@@ -6668,6 +6713,7 @@ RSKCorrespondence
 RSeminvariant
 RSpace
 RSpaceWithBasis
+RSym
 RTensor
 RTensorSpace
 RWP
@@ -6784,6 +6830,7 @@ RationalRuledSurface
 RationalScroll
 RationalSequence
 RationalSolutions
+Rationally
 Rationals
 RationalsAsNumberField
 Raw
@@ -6969,6 +7016,7 @@ RelativeInvariant
 RelativePrecision
 RelativePrecisionOfDerivation
 RelativeProj
+RelativeQuadraticDefect
 RelativeRank
 RelativeRootDatum
 RelativeRootElement
@@ -7322,6 +7370,7 @@ SVWord
 Safe
 SafeUniformizer
 Salmon
+Same
 Satisfied
 Satisfies
 SatisfiesSzPresentation
@@ -7704,6 +7753,7 @@ SlopeValuation
 Slopes
 Small
 SmallBasis
+SmallCancellationConditions
 SmallDegreeImage
 SmallDegreePreimage
 SmallGraphDatabase
@@ -7794,6 +7844,7 @@ Sparse
 SparseIrreducibleRootDatum
 SparseMatrix
 SparseMatrixStructure
+SparseMonomialMatrix
 SparseReps
 SparseRootDatum
 SparseStandardRootDatum
@@ -7863,6 +7914,7 @@ Squarefree
 SquarefreeFactorization
 SquarefreePart
 SquarefreePartialFractionDecomposition
+Squares
 Sr
 SrAutomorphism
 SrfKum
@@ -8546,6 +8598,7 @@ UnitGroup
 UnitGroupAsSubgroup
 UnitGroupGenerators
 UnitRank
+UnitSquareClassReps
 UnitTrivialSubgroup
 UnitVector
 Unital
@@ -8556,6 +8609,7 @@ UnitaryReflection
 UnitarySpace
 UnitaryTransvection
 Units
+UnitsWithSigns
 Unity
 Univariate
 UnivariateEliminationIdealGenerator
@@ -8810,6 +8864,8 @@ WreathProduct
 Write
 WriteBinary
 WriteBytes
+WriteBytesCheck
+WriteCheck
 WriteGModuleOver
 WriteHadamardDatabase
 WriteK3Data
