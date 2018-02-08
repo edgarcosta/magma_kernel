@@ -32,7 +32,6 @@ ASigmaSp
 ASp
 ATLAS
 ATLASGroup
-ATLASGroup
 ATLASGroupNames
 Abelian
 AbelianBasis
@@ -163,6 +162,7 @@ AdjointLinearSystem
 AdjointLinearSystemForNodalCurve
 AdjointLinearSystemFromIdeal
 AdjointMatrix
+AdjointPreimage
 AdjointRepresentation
 AdjointRepresentationDecomposition
 AdjointVersion
@@ -204,7 +204,6 @@ AlgChtrElt
 AlgClff
 AlgComb
 AlgCon
-AlgFP
 AlgFP
 AlgFPElt
 AlgFPLHom
@@ -305,6 +304,7 @@ AlternatingOrSymmetricElementToWord
 AlternatingPower
 AlternatingSpace
 AlternatingSquare
+AlternatingSquarePreimage
 AlternatingSum
 AlternatingTensor
 AlternatingWeylSum
@@ -828,7 +828,6 @@ Carlo
 Carmichael
 CarmichaelLambda
 Cartan
-Cartan
 CartanInteger
 CartanMatrices
 CartanMatrix
@@ -930,7 +929,6 @@ ChangeSupport
 ChangeTensorCategory
 ChangeUniverse
 Char
-Char
 Character
 CharacterDegrees
 CharacterDegreesPGroup
@@ -964,7 +962,6 @@ CheckWeilPolynomial
 Chern
 ChernNumber
 Chevalley
-ChevalleyBasis
 ChevalleyBasis
 ChevalleyBasisSmallChar
 ChevalleyGroup
@@ -1003,16 +1000,12 @@ ClassGroupPrimeRepresentatives
 ClassGroupSetUseMemory
 ClassGroupStructure
 ClassGroupUnitGroup
-ClassInvariantsCSp
+ClassInvariants
 ClassInvariantsCSp
 ClassInvariantsExtSp
 ClassInvariantsGO
-ClassInvariantsGO
-ClassInvariantsGOMinus
 ClassInvariantsGOMinus
 ClassInvariantsGOPlus
-ClassInvariantsGOPlus
-ClassInvariantsSp
 ClassInvariantsSp
 ClassMap
 ClassNumber
@@ -1028,7 +1021,6 @@ ClassRepresentativesGOMinus
 ClassRepresentativesGOPlus
 ClassRepresentativesSp
 ClassTwo
-Classes
 Classes
 ClassesCSp
 ClassesData
@@ -1167,7 +1159,6 @@ CohomotopismCategory
 Coisogeny
 CoisogenyGroup
 Cokernel
-Collect
 Collect
 CollectRelations
 Collinear
@@ -1325,7 +1316,6 @@ ConformalOrthogonalGroupPlus
 ConformalSpecialLieAlgebra
 ConformalSymplecticGroup
 ConformalUnitaryGroup
-ConformalUnitaryGroup
 Congruence
 CongruenceGroup
 CongruenceGroupAnemic
@@ -1343,7 +1333,6 @@ Conjectural
 ConjecturalRegulator
 ConjecturalSha
 Conjugacy
-ConjugacyClasses
 ConjugacyClasses
 ConjugacyInvariantCSp
 ConjugacyInvariantO
@@ -1603,13 +1592,11 @@ CrossCorrelation
 CrossPolytope
 Crv
 CrvCon
-CrvCon
 CrvEll
 CrvEllFldFin
 CrvEllFldFun
 CrvEllQNF
 CrvG1
-CrvHyp
 CrvHyp
 CrvMod
 CrvRat
@@ -1797,6 +1784,7 @@ DeleteWeights
 Delsarte
 DelsarteGoethalsCode
 Delta
+DeltaPreimage
 Demazure
 DemazureD
 DemazureRvw
@@ -1835,7 +1823,6 @@ DescentInformation
 DescentMaps
 DescentSets
 Description
-Design
 Design
 Designed
 Desingularise
@@ -1916,7 +1903,6 @@ DimensionOfKernelZ2
 DimensionOfSpanZ2
 Dimensional
 Dimensions
-DimensionsEstimate
 DimensionsEstimate
 DimensionsOfHomology
 DimensionsOfInjectiveModules
@@ -2072,8 +2058,6 @@ EXAMPLE
 Ealpha
 Easy
 EasyBasis
-EasyBasis
-EasyIdeal
 EasyIdeal
 Echelon
 EchelonForm
@@ -2216,7 +2200,6 @@ Enumeration
 EnumerationCost
 EnumerationCostArray
 Enumerator
-Env
 Env
 Enveloping
 Environment
@@ -2572,10 +2555,8 @@ FlagComplex
 Flat
 FldAC
 FldAb
-FldAb
 FldCom
 FldComElt
-FldCyc
 FldCyc
 FldCycElt
 FldFin
@@ -2587,12 +2568,10 @@ FldFunFracSch
 FldFunFracSchElt
 FldFunG
 FldFunRat
-FldFunRat
 FldFunRatElt
 FldNear
 FldNum
 FldPadElt
-FldQuad
 FldQuad
 FldRat
 FldRe
@@ -2649,7 +2628,6 @@ FreeResolution1
 FreeResolutionLocal
 FreeSemigroup
 Freef
-FreefValues
 FreefValues
 Frequency
 Frobenius
@@ -2716,7 +2694,6 @@ G2RootSystem
 G2ToIgusaInvariants
 G4
 GB
-GB
 GBoverZ
 GCD
 GCDs
@@ -2759,7 +2736,6 @@ GU
 Gabidulin
 GabidulinCode
 GalCohom
-GalRep
 GalRep
 Gallager
 GallagerCode
@@ -2819,7 +2795,6 @@ Gegenbauer
 GegenbauerPolynomial
 Genera
 General
-GeneralLinearGroup
 GeneralLinearGroup
 GeneralOrthogonalGroup
 GeneralOrthogonalGroupMinus
@@ -3010,7 +2985,6 @@ Gradings
 Gram
 GramMatrix
 Graph
-Graph
 GraphAutomorphism
 GraphGeneralAccess
 GraphGeneration
@@ -3062,15 +3036,11 @@ GrowthFunction
 Grp
 GrpASim
 GrpAb
-GrpAb
 GrpAbGen
-GrpAtc
 GrpAtc
 GrpAtcElt
 GrpAuto
-GrpAuto
 GrpBB
-GrpBrd
 GrpBrd
 GrpCoh
 GrpCox
@@ -3078,7 +3048,6 @@ GrpData
 GrpDrchNFElt
 GrpFP
 GrpFPCox
-GrpGPC
 GrpGPC
 GrpHeckeElt
 GrpLie
@@ -3093,18 +3062,13 @@ GrpMatGen
 GrpMatInf
 GrpMatQZ
 GrpPC
-GrpPC
-GrpPSL2
 GrpPSL2
 GrpPSL2Elt
 GrpPSL2Shim
-GrpPSL2Shim
-GrpPerm
 GrpPerm
 GrpPermCox
 GrpPsl2
 GrpPsl2Elt
-GrpRWS
 GrpRWS
 GrpRWSElt
 GrpRfl
@@ -3126,7 +3090,6 @@ HN
 HS
 HSeminvariant
 HTMLOutput
-Hadamard
 Hadamard
 HadamardAutomorphismGroup
 HadamardCanonicalForm
@@ -3186,7 +3149,6 @@ HasFiniteAbelianQuotient
 HasFiniteDimension
 HasFiniteIndex
 HasFiniteKernel
-HasFiniteOrder
 HasFiniteOrder
 HasFiniteRank
 HasGCD
@@ -3253,7 +3215,6 @@ HasWeakIntersectionProperty
 HasZeroDerivation
 Hash
 Hasp
-HaspQuotientDefinitions
 HaspQuotientDefinitions
 Hasse
 HasseInvariant
@@ -3466,14 +3427,12 @@ HypersurfaceSingularityExpandFunction
 HypersurfaceSingularityExpandFurther
 IInvariant
 IO
-IO
 ISA
 ISABase
 ISABaseField
 Id
 IdDataNLAC
 IdDataSLAC
-Ideal
 Ideal
 IdealArithmetic
 IdealFactorisation
@@ -3543,7 +3502,6 @@ InNeighbors
 InNeighbours
 Incidence
 IncidenceDigraph
-IncidenceGeometry
 IncidenceGeometry
 IncidenceGraph
 IncidenceMatrix
@@ -3619,6 +3577,7 @@ Infinite
 InfiniteDivisor
 InfinitePart
 InfinitePlaces
+InfinitePositiveChar
 InfiniteSum
 Infinity
 Inflation
@@ -3783,7 +3742,6 @@ IrreducibleCoxeterGroup
 IrreducibleCoxeterMatrix
 IrreducibleDynkinDigraph
 IrreducibleLowTermGF2Polynomial
-IrreducibleLowTermGF2Polynomial
 IrreducibleMatrixGroup
 IrreducibleModule
 IrreducibleModules
@@ -3799,10 +3757,8 @@ IrreducibleRootDatum
 IrreducibleRootSystem
 IrreducibleSecondaryInvariants
 IrreducibleSimpleSubalgebraTreeSU
-IrreducibleSimpleSubalgebraTreeSU
 IrreducibleSimpleSubalgebrasOfSU
-IrreducibleSimpleSubalgebrasOfSU
-IrreducibleSparseGF2Polynomial
+IrreducibleSolubleSubgroups
 IrreducibleSparseGF2Polynomial
 IrreducibleSubgroups
 Irreducibles
@@ -4137,7 +4093,6 @@ IsLie
 IsLineRegular
 IsLineTransitive
 IsLinear
-IsLinearGroup
 IsLinearGroup
 IsLinearSpace
 IsLinearSystemNonEmpty
@@ -4656,7 +4611,6 @@ KTensorSpace
 KVertex
 Kac
 KacMoodyClass
-KacMoodyClass
 KacMoodyClasses
 Kant
 Kerdock
@@ -4872,8 +4826,6 @@ Last
 LastIndexOfColumn
 LastIndexOfRow
 Lat
-Lat
-LatNF
 LatNF
 LatNFElt
 Lattice
@@ -4985,7 +4937,6 @@ Library
 Lichtenbaum
 Lie
 LieAlgebra
-LieAlgebra
 LieAlgebraCons
 LieAlgebraHomorphism
 LieAlgebraIsogeny
@@ -5047,7 +4998,6 @@ Lines
 Linking
 LinkingNumbers
 Lint
-List
 List
 ListAttributes
 ListCategories
@@ -5163,7 +5113,6 @@ Manipulating
 Mantissa
 MantissaExponent
 Map
-Map
 Map1
 Mapping
 Maps
@@ -5175,7 +5124,6 @@ Marks
 Mass
 Massey
 MasseyProduct
-Mat
 Mat
 MatRep
 MatRepCharacteristics
@@ -5189,7 +5137,6 @@ MatricesAndGraphs
 Matrix
 MatrixAlgebra
 MatrixGroup
-MatrixLieAlgebra
 MatrixLieAlgebra
 MatrixOfElement
 MatrixOfInequalities
@@ -5341,7 +5288,6 @@ Minimals
 Minimise
 MinimiseWeights
 Minimize
-Minimize
 MinimizeCubicSurface
 MinimizeDeg4delPezzo
 MinimizeGenerators
@@ -5385,13 +5331,11 @@ Mixed
 MixedCanonicalForm
 Mobile
 Mod
-Mod
 ModAbVar
 ModAlg
 ModBrdt
 ModByPowerOf2
 ModCpx
-ModDed
 ModDed
 ModFld
 ModFrm
@@ -5400,7 +5344,6 @@ ModFrmHil
 ModGrp
 ModMatFld
 ModMatRng
-ModRng
 ModRng
 ModSS
 ModSym
@@ -5466,7 +5409,6 @@ Molien
 MolienSeries
 MolienSeriesApproximation
 MonRWS
-MonRWS
 MonRWSElt
 Monic
 MonicDifferentialOperator
@@ -5515,7 +5457,6 @@ MultTabCreate1
 Multi
 MultiDigraph
 MultiExtension
-MultiGraph
 MultiGraph
 Multidegree
 Multilinear
@@ -5619,7 +5560,6 @@ Neighbours
 NestedExists
 NestedIteration
 Network
-Network
 New
 NewLevel
 NewModularHyperellipticCurve
@@ -5634,7 +5574,6 @@ NewformDecomposition
 NewformLabeling
 Newforms
 NewformsOfDegree1
-Newton
 Newton
 NewtonPolygon
 NewtonPolynomial
@@ -6230,7 +6169,6 @@ PlanarDual
 PlanarGraphDatabase
 Planarity
 Plane
-Plane
 PlaneToDisc
 PlayWithPoints
 PlcNumElt
@@ -6523,7 +6461,6 @@ PseudoGenerators
 PseudoGramMatrix
 PseudoMatrix
 PseudoRandom
-PseudoRandom
 PseudoReflection
 PseudoReflectionGroup
 PseudoRemainder
@@ -6557,7 +6494,6 @@ Pyramid
 Q
 QCartier
 QEAtoUEA
-QECC
 QECC
 QECCBounds
 QECCLower
@@ -6871,10 +6807,13 @@ Reciprocal
 ReciprocalPolynomial
 Recognise
 RecogniseAbelian
+RecogniseAdjoint
 RecogniseAlternating
 RecogniseAlternatingOrSymmetric
+RecogniseAlternatingSquare
 RecogniseAltsym2
 RecogniseClassicalSSA
+RecogniseDelta
 RecogniseExchangeSSA
 RecogniseLargeRee
 RecogniseRee
@@ -6884,9 +6823,11 @@ RecogniseSU3
 RecogniseSU4
 RecogniseSmallDegree
 RecogniseSp4
+RecogniseSp4Even
 RecogniseSpOdd
 RecogniseStarAlgebra
 RecogniseSymmetric
+RecogniseSymmetricSquare
 RecogniseSz
 Recognition
 Recognize
@@ -6898,6 +6839,7 @@ RecognizeSL2
 RecognizeSU3
 RecognizeSU4
 RecognizeSp4
+RecognizeSp4Even
 RecognizeSpOdd
 RecognizeSz
 Reconstruct
@@ -7066,10 +7008,7 @@ Representations
 Representative
 RepresentativeCocycles
 RepresentativeMatrixCSp
-RepresentativeMatrixCSp
 RepresentativeMatrixO
-RepresentativeMatrixO
-RepresentativeMatrixSp
 RepresentativeMatrixSp
 RepresentativePoint
 Representatives
@@ -7099,6 +7038,7 @@ ResolveAffineMonicSurface
 ResolveFanMap
 ResolveLinearSystem
 ResolveProjectiveCurve
+ResolveProjectiveSurface
 ResolveSingByBlowUp
 ResolveSingularSurface
 Restrict
@@ -7118,7 +7058,6 @@ RestrictionData
 RestrictionMap
 RestrictionMatrix
 RestrictionOfGenerators
-RestrictionOfScalars
 RestrictionOfScalars
 RestrictionToImage
 RestrictionToPatch
@@ -7143,8 +7082,6 @@ Rho
 Richardson
 Richelot
 RichelotIsogenousSurface
-RichelotIsogenousSurface
-RichelotIsogenousSurfaces
 RichelotIsogenousSurfaces
 Riemann
 RiemannRochBasis
@@ -7191,7 +7128,6 @@ RingMap
 RingOfFractions
 RingOfIntegers
 RngCycElt
-RngDiff
 RngDiff
 RngDiffElt
 RngFunFrac
@@ -7396,7 +7332,6 @@ ScaledLattice
 Scaling
 ScalingFactor
 Scheme
-Scheme
 SchemeGraphMap
 SchemeGraphMapToSchemeMap
 SchemeMap
@@ -7482,7 +7417,6 @@ Separation
 SeparationVertices
 Separator
 Seq
-Seq
 SeqFact
 SeqFromClifford
 SeqToClifford
@@ -7505,7 +7439,6 @@ Serre
 SerreBound
 Server
 Sesquilinear
-Set
 Set
 SetAllInvariantsOfDegree
 SetAssertions
@@ -7590,7 +7523,6 @@ Shadow
 ShadowSpace
 Shape
 Sharply
-Sheaf
 Sheaf
 SheafHomomorphism
 SheafHoms
@@ -7887,12 +7819,10 @@ SplitCell
 SplitCellsByValues
 SplitExtension
 SplitMaximalToralSubalgebra
-SplitMaximalToralSubalgebra
 SplitOctonionAlgebra
 SplitRealPlace
 SplitRootDatum
 SplitToral
-SplitToralSubalgebra
 SplitToralSubalgebra
 Splitcomponents
 Splitting
@@ -7970,7 +7900,6 @@ Start
 StartEnumeration
 StartNewClass
 Startup
-State
 State
 Stauduhar
 Steane
@@ -8193,6 +8122,7 @@ SymmetricRepresentationOrthogonal
 SymmetricRepresentationSeminormal
 SymmetricSpace
 SymmetricSquare
+SymmetricSquarePreimage
 SymmetricTensor
 SymmetricToQuadraticForm
 SymmetricWeightEnumerator
@@ -8238,7 +8168,6 @@ TOPW
 TPairing
 Table
 TableOfMarks
-Tableau
 Tableau
 TableauIntegerMonoid
 TableauMonoid
@@ -8364,7 +8293,6 @@ ToralRootDatum
 ToralRootSystem
 Tori
 Toric
-Toric
 ToricAffinePatch
 ToricCode
 ToricIdentityMap
@@ -8482,7 +8410,6 @@ TruncatedAlgebra
 Truncation
 Tup
 Tuple
-Tuple
 TupleAccess
 TupleToList
 Tuplist
@@ -8491,7 +8418,6 @@ Twelve
 TwelveDescent
 Twist
 Twisted
-TwistedBasis
 TwistedBasis
 TwistedCartanName
 TwistedDual
@@ -8529,11 +8455,9 @@ TwoIsogenyDescent
 TwoIsogenySelmerGroups
 TwoPowerIsogenyDescentRankBound
 TwoSelmerGroup
-TwoSelmerGroup
 TwoSidedIdealClassGroup
 TwoSidedIdealClasses
 TwoTorsionPolynomial
-TwoTorsionSubgroup
 TwoTorsionSubgroup
 TwoTransitiveGroupIdentification
 TwoTwistedEsixes
