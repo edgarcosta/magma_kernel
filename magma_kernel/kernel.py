@@ -52,7 +52,7 @@ class MagmaKernel(Kernel):
             magma.expect(u'> ')
             magma.sendline(u'')
             self.magmawrapper = replwrap.REPLWrapper(magma,
-                    u'> ', u'SetPrompt("{}");')
+                    u'> ', u'SetPrompt("{}");', '{}')
         finally:
             signal.signal(signal.SIGINT, sig)
 
@@ -65,6 +65,9 @@ class MagmaKernel(Kernel):
 
         interrupted = False
         try:
+            # add a semicolon if doesn't end with a semicolon
+            if not code.rstrip().endswith(';'):
+                code += ";"
             output = self.magmawrapper.run_command(code.rstrip(), timeout=None)
         except KeyboardInterrupt:
             self.magmawrapper.child.sendintr()
@@ -116,6 +119,7 @@ class MagmaKernel(Kernel):
         matches = self._magma_builtins[low:high];
 
         #TODO add global variables
+        # using ShowIdentifiers()
 
         if not matches:
             return default;
