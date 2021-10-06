@@ -209,7 +209,11 @@ class MagmaKernel(Kernel):
         for sep in ["\n", ";", " "]:  # we just need the last chunk
             begin = begin.rpartition(sep)[-1]
             end = end.partition(sep)[0]
-        token = begin + end
+        if end:
+            # do I even need the end?
+            token = begin + " " + end
+        else:
+            token = begin
         if not token:
             return default
         token_escaped = token.replace('"', r"\"")
