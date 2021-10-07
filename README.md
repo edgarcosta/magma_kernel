@@ -8,9 +8,9 @@ A simple IPython kernel for magma.
 - Uses magma's built-in tab completion
 - Supports long lines
 
-<center>
+<p align="center">
 <img src="https://raw.githubusercontent.com/edgarcosta/i/master/magma_kernel.gif" height="800">
-</center>
+</p>
 
 ## Installation
 
