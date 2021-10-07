@@ -8,11 +8,11 @@ A simple IPython kernel for magma.
 - Uses magma's built-in tab completion
 - Supports long lines
 
-<img src="https://raw.githubusercontent.com/edgarcosta/i/master/magma_kernel.mp4" height="450">
+<img src="https://raw.githubusercontent.com/edgarcosta/i/master/magma_kernel.gif" height="450">
 
 ## Installation
 
-You must have [Jupyter](https://jupyter.org/) installed in your system. For example, it comes with 
+You must have [Jupyter](https://jupyter.org/) installed in your system. For example, it comes with
 [SageMath](http://www.sagemath.org/).
 If are using [SageMath](http://www.sagemath.org/), you can install `magma_kernel` by doing:
 
@@ -25,6 +25,8 @@ if you are using [Jupyter](https://jupyter.org/) as a standalone, you can instal
 ```
 pip install git+https://github.com/edgarcosta/magma_kernel.git
 ```
+
+Consider adding the flag `--user` if you do not have permissions to install it system-wide.
 
 
 
