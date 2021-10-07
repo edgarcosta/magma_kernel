@@ -34,6 +34,7 @@ class MagmaKernel(Kernel):
     def __init__(self, **kwargs):
         Kernel.__init__(self, **kwargs)
         # sets child, banner, language_info, language_version
+
         self._start_magma()
 
     def _start_magma(self):
@@ -63,6 +64,16 @@ class MagmaKernel(Kernel):
             self.child = magma
         finally:
             signal.signal(signal.SIGINT, sig)
+
+        # figure out the maximum length of a formatted input line
+        try:
+            # Linux 4096
+            # OSX 1024
+            # Solaris 256
+            self.max_input_line_size = int(fpathconf(self.child.child_fd, "PC_MAX_CANON")) - 1
+        except OSError:
+            # if we can't compute the PTY limit take something minimum that we are aware of
+            self.max_input_line_size = 255
         lang_version = re.search(r"Magma V(\d*.\d*-\d*)", banner).group(1)
         self.banner = "Magma kernel connected to Magma " + lang_version
         self.language_info["version"] = lang_version
@@ -111,62 +122,73 @@ class MagmaKernel(Kernel):
             code += ";"
 
         interrupted = False
-        read_characters = 0  # initializing read_characters before try block
-        append_to_output = ""
-        try:
-            max_input_line_size = int(fpathconf(0, "PC_MAX_CANON")) - 10
-        except OSError:
-            # if we can't compute the system limits take something low
-            max_input_line_size = 128
-        try:
-            #TODO: maybe don't splitlines and just use file if too long
-            for line in code.splitlines():
-                # working around buffer sizes
-                tmpfile = None
-                if len(line) > max_input_line_size:
-                    # send the line via a temporary file
-                    tmpfile = NamedTemporaryFile("w")
-                    tmpfile.write(line)
-                    self.child.sendline(f'load "{tmpfile.name}";')
-                    # consume Loading message
-                    s = self.child.readline()
-                    # the newline character is not standard to check equality
-                    assert s.startswith(
-                        f'Loading "{tmpfile.name}"'
-                    ), "Consumed the wrong line: " + repr(s)
-                else:
-                    self.child.sendline(line)
-                # Use short timeout to update output whenever something is received
-                initial_counter = counter = 10
-                initial_timeout = timeout = 0.5
-                read_characters = 0
-                while True:
-                    v = self.child.expect_exact(
-                        [self._prompt, TIMEOUT], timeout=timeout
-                    )
-                    if not silent and len(self.child.before) > read_characters:
-                        # something in output
-                        self.send_response(
-                            self.iopub_socket,
-                            "stream",
-                            {
-                                "name": "stdout",
-                                "text": self.child.before[read_characters:],
-                            },
-                        )
-                        read_characters = len(self.child.before)
-                        counter = initial_counter
-                        timeout = initial_timeout
-                    if v == 0:
-                        # finished processing the line
-                        # ready to send newline
-                        break
-                    counter -= 1
-                    # increase timeout after default_counter attempts of processing line
-                    if counter <= 0:
-                        timeout = min(30, 2 * timeout)
-                        counter = initial_counter
 
+        def wait_for_output(filename=None):
+            # If one send the code block via a temporary file one needs to
+            # to remove temporary filename references from the output.
+            read_characters = 0
+            # output output initially on intervals of 0.5 seconds
+            # If no output is received, the interval slowly increases to 30 seconds over 5 min
+            initial_counter = counter = 10
+            initial_timeout = timeout = 0.5
+            if filename:
+                infile_line = f'In file "{filename}", '
+
+            while True:
+                v = self.child.expect_exact([self._prompt, TIMEOUT], timeout=timeout)
+
+                # something in output
+                if not silent and len(self.child.before) > read_characters:
+                    output = self.child.before[read_characters:]
+                    if read_characters == 0 and filename:
+                        # Remove the "Loading filename" line
+                        assert output.startswith(
+                            f'Loading "{filename}"'
+                        ), "First line doesn't match expected outcome: " + repr(output)
+                        output = output.partition("\n")[-1]  # consume first line
+                    if filename:
+                        # in case of error remove temporary filename from output
+                        output.replace(infile_line, "", 1)
+
+                    self.send_response(
+                        self.iopub_socket,
+                        "stream",
+                        {
+                            "name": "stdout",
+                            "text": output,
+                        },
+                    )
+                    read_characters = len(self.child.before)
+                    counter = initial_counter
+                    timeout = initial_timeout
+                counter -= 1
+                # increase timeout after default_counter attempts of processing line
+                if counter <= 0:
+                    # timeout = min(30, 2 * timeout)
+                    counter = initial_counter
+                if v == 0:
+                    # finished waiting for output
+                    return read_characters
+
+        append_to_output = ""
+
+        try:
+            # if the code block is long write it into a file and load it in magma
+            # this takes about as the same time as sending a single line, and thus
+            # we check the length of the whole code block
+            # WARNING: the more obvious workaround of splitting each long line into
+            # several small escaped lines, doesn't work, as we hit other system limits.
+            # For example, I wasn't able to send a line longer that 2^16 character.
+            if len(code) > self.max_input_line_size:
+                # send the line via a temporary file
+                tmpfile = NamedTemporaryFile("w")
+                tmpfile.write(code)
+                self.child.sendline(f'load "{tmpfile.name}";')
+                read_characters = wait_for_output(tmpfile.name)
+            else:
+                for line in code.splitlines():
+                    self.child.sendline(line)
+                    read_characters = wait_for_output(tmpfile.name)
         except KeyboardInterrupt:
             self.child.sendintr()
             interrupted = True
@@ -197,7 +219,6 @@ class MagmaKernel(Kernel):
         }
 
     def do_complete(self, code, cursor_pos):
-        begin, end = code[:cursor_pos], code[cursor_pos:]
         default = {
             "matches": [],
             "cursor_start": 0,
@@ -206,20 +227,18 @@ class MagmaKernel(Kernel):
             "status": "ok",
         }
         # optimizing to not send everything
+        token = code[:cursor_pos]
         for sep in ["\n", ";", " "]:  # we just need the last chunk
-            begin = begin.rpartition(sep)[-1]
-            end = end.partition(sep)[0]
-        if end:
-            # do I even need the end?
-            token = begin + " " + end
-        else:
-            token = begin
+            token = token.rpartition(sep)[-1]
         if not token:
             return default
         token_escaped = token.replace('"', r"\"")
-        self.child.sendline(f'Completion("{token_escaped}", {len(begin)});')
+        self.child.sendline(f'Completion("{token_escaped}", {len(token)});')
         self.child.expect_exact(self._prompt)
         if self.child.before == "DIE\n":
+            self.log.error(
+                f'Failed to complete, magma did not like our call:  Completion("{token_escaped}", {len(token)});'
+            )
             return default
         matches = self.child.before.splitlines()
         try:
@@ -228,9 +247,9 @@ class MagmaKernel(Kernel):
             if matches_len == 0:
                 return default
             # where Magma decided that the completion starts
-            cursor_start = cursor_pos - len(begin) + int(matches[1])
-            # where can place our cursor
-            cursor_end = cursor_pos - len(begin) + int(matches[2])
+            cursor_start = cursor_pos - len(token) + int(matches[1])
+            # where we can place our cursor
+            cursor_end = cursor_pos - len(token) + int(matches[2])
             matches = matches[3:]
             assert matches_len == len(matches)
         except Exception:
