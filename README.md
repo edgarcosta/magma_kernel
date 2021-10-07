@@ -34,7 +34,8 @@ Consider adding the flag `--user` if you do not have permissions to install it s
 
 ## Credit & Others
 Based on [takluyver/bash_kernel](https://github.com/takluyver/bash_kernel) and [cgranade/magma_kernel](https://github.com/cgranade/magma_kernel).
+Reporting partial output and processing of help requests by returning an appropriate help query URL for Magma online documentation provided by [nbruin/magma_kernel](https://github.com/nbruin/magma_kernel).
 
 For details of how this works, see the Jupyter docs on 
 [wrapper kernels](http://jupyter-client.readthedocs.org/en/latest/wrapperkernels.html), and
-Pexpect's docs on the [replwrap module](http://pexpect.readthedocs.org/en/latest/api/replwrap.html)
+Pexpect's docs on the [spawn class](https://pexpect.readthedocs.io/en/latest/api/pexpect.html#spawn-class)
