@@ -2,7 +2,7 @@ from ipykernel.kernelbase import Kernel
 from pexpect import EOF, TIMEOUT, spawn
 from tempfile import NamedTemporaryFile
 
-from os import path, fpathconf
+from os import path, fpathconf, fsync
 import re
 import signal
 import traceback
@@ -130,7 +130,7 @@ class MagmaKernel(Kernel):
             # output output initially on intervals of 0.5 seconds
             # If no output is received, the interval slowly increases to 30 seconds over 5 min
             initial_counter = counter = 10
-            initial_timeout = timeout = 0.5
+            initial_timeout = timeout = 0.1
             if filename:
                 infile_line = f'In file "{filename}", '
 
@@ -148,7 +148,7 @@ class MagmaKernel(Kernel):
                         output = output.partition("\n")[-1]  # consume first line
                     if filename:
                         # in case of error remove temporary filename from output
-                        output.replace(infile_line, "", 1)
+                        output = output.replace(infile_line, "In ", 1)
 
                     self.send_response(
                         self.iopub_socket,
@@ -181,14 +181,16 @@ class MagmaKernel(Kernel):
             # For example, I wasn't able to send a line longer that 2^16 character.
             if len(code) > self.max_input_line_size:
                 # send the line via a temporary file
-                tmpfile = NamedTemporaryFile("w")
-                tmpfile.write(code)
-                self.child.sendline(f'load "{tmpfile.name}";')
-                read_characters = wait_for_output(tmpfile.name)
+                with NamedTemporaryFile("w+t") as tmpfile:
+                    tmpfile.write(code + '\n')
+                    tmpfile.flush()
+                    fsync(tmpfile.fileno())
+                    self.child.sendline(f'load "{tmpfile.name}";')
+                    read_characters = wait_for_output(tmpfile.name)
             else:
                 for line in code.splitlines():
                     self.child.sendline(line)
-                    read_characters = wait_for_output(tmpfile.name)
+                    read_characters = wait_for_output()
         except KeyboardInterrupt:
             self.child.sendintr()
             interrupted = True
@@ -246,10 +248,10 @@ class MagmaKernel(Kernel):
             matches_len = int(matches[0])
             if matches_len == 0:
                 return default
-            # where Magma decided that the completion starts
+            # The range of text that should be replaced by the above matches when a completion is accepted.
+            # typically cursor_end is the same as cursor_pos in the request.
             cursor_start = cursor_pos - len(token) + int(matches[1])
-            # where we can place our cursor
-            cursor_end = cursor_pos - len(token) + int(matches[2])
+            cursor_end = cursor_pos - len(token) + int(matches[1]) + int(matches[2])
             matches = matches[3:]
             assert matches_len == len(matches)
         except Exception:
