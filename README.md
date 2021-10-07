@@ -2,7 +2,13 @@
 
 A simple IPython kernel for magma.
 
-<img src="https://raw.githubusercontent.com/edgarcosta/i/master/magma_kernel.gif" height="450">
+## Features:
+
+- Auto adds semicolons at the end of code blocks
+- Uses magma's built-in tab completion
+- Supports long lines
+
+<img src="https://raw.githubusercontent.com/edgarcosta/i/master/magma_kernel.mp4" height="450">
 
 ## Installation
 
