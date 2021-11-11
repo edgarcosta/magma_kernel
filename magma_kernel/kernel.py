@@ -150,14 +150,15 @@ class MagmaKernel(Kernel):
                         # in case of error remove temporary filename from output
                         output = output.replace(infile_line, "In ", 1)
 
-                    self.send_response(
-                        self.iopub_socket,
-                        "stream",
-                        {
-                            "name": "stdout",
-                            "text": output,
-                        },
-                    )
+                    if output:
+                        self.send_response(
+                            self.iopub_socket,
+                            "stream",
+                            {
+                                "name": "stdout",
+                                "text": output,
+                            },
+                        )
                     read_characters = len(self.child.before)
                     counter = initial_counter
                     timeout = initial_timeout
