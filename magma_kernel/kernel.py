@@ -41,7 +41,7 @@ class MagmaKernel(Kernel):
         # Signal handlers are inherited by forked processes, and we can't easily
         # reset it from the subprocess. Since kernelapp ignores SIGINT except in
         # message handlers, we need to temporarily reset the SIGINT handler here
-        # so that bash and its children are interruptible.
+        # so that magma and its children are interruptible.
         sig = signal.signal(signal.SIGINT, signal.SIG_DFL)
         try:
             magma = spawn(
@@ -50,6 +50,7 @@ class MagmaKernel(Kernel):
                 encoding="utf-8",
                 maxread=4194304,
                 ignore_sighup=True,
+                codec_errors="ignore",
             )
             magma.expect_exact("> ")
             banner = magma.before
@@ -70,7 +71,9 @@ class MagmaKernel(Kernel):
             # Linux 4096
             # OSX 1024
             # Solaris 256
-            self.max_input_line_size = int(fpathconf(self.child.child_fd, "PC_MAX_CANON")) - 1
+            self.max_input_line_size = (
+                int(fpathconf(self.child.child_fd, "PC_MAX_CANON")) - 1
+            )
         except OSError:
             # if we can't compute the PTY limit take something minimum that we are aware of
             self.max_input_line_size = 255
@@ -183,7 +186,7 @@ class MagmaKernel(Kernel):
             if len(code) > self.max_input_line_size:
                 # send the line via a temporary file
                 with NamedTemporaryFile("w+t") as tmpfile:
-                    tmpfile.write(code + '\n')
+                    tmpfile.write(code + "\n")
                     tmpfile.flush()
                     fsync(tmpfile.fileno())
                     self.child.sendline(f'load "{tmpfile.name}";')
