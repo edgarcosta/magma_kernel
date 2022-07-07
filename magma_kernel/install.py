@@ -9,7 +9,7 @@ kernel_json = {
     "argv": [sys.executable, "-m", "magma_kernel", "-f", "{connection_file}"],
     "display_name": "Magma",
     "language": "magma",
-    "codemirror_mode": "magma",
+    "codemirror_mode": "pascal",
     "env": {"PS1": "$"},
 }
 
