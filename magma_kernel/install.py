@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 
 from jupyter_client.kernelspec import install_kernel_spec
@@ -20,6 +21,7 @@ def install_my_kernel_spec(user=True):
         with open(os.path.join(td, "kernel.json"), "w") as f:
             json.dump(kernel_json, f, sort_keys=True)
         # TODO: Copy resources once they're specified
+        shutil.copy("magma_kernel/logo-64x64.png", td)
 
         print("Installing IPython kernel spec")
         install_kernel_spec(td, "magma", user=user, replace=True)
