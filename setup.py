@@ -49,7 +49,7 @@ setup(
     install_requires=["pexpect>=4.0", "jupyter_client"],
     packages=["magma_kernel"],
     package_dir={"magma_kernel": "magma_kernel"},
-    package_data={"magma_kernel": ["VERSION", "magma-builtins"]},
+    package_data={"magma_kernel": ["VERSION", "logo-64x64.png"]},
     # include_package_data = True,
     cmdclass={"install": install},
 )
