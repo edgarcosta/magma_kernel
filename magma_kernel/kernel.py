@@ -125,11 +125,12 @@ class MagmaKernel(Kernel):
             code += ";"
 
         interrupted = False
+        read_characters = [0]
 
-        def wait_for_output(filename=None):
+        def wait_for_output(read_characters, filename=None):
+            # this function will *modify* the read_characters[0]
             # If one send the code block via a temporary file one needs to
             # to remove temporary filename references from the output.
-            read_characters = 0
             # output output initially on intervals of 0.5 seconds
             # If no output is received, the interval slowly increases to 30 seconds over 5 min
             initial_counter = counter = 10
@@ -141,9 +142,9 @@ class MagmaKernel(Kernel):
                 v = self.child.expect_exact([self._prompt, TIMEOUT], timeout=timeout)
 
                 # something in output
-                if not silent and len(self.child.before) > read_characters:
-                    output = self.child.before[read_characters:]
-                    if read_characters == 0 and filename:
+                if not silent and len(self.child.before) > read_characters[0]:
+                    output = self.child.before[read_characters[0]:]
+                    if read_characters[0] == 0 and filename:
                         # Remove the "Loading filename" line
                         assert output.startswith(
                             f'Loading "{filename}"'
@@ -162,7 +163,7 @@ class MagmaKernel(Kernel):
                                 "text": output,
                             },
                         )
-                    read_characters = len(self.child.before)
+                    read_characters[0] = len(self.child.before)
                     counter = initial_counter
                     timeout = initial_timeout
                 counter -= 1
@@ -172,7 +173,7 @@ class MagmaKernel(Kernel):
                     counter = initial_counter
                 if v == 0:
                     # finished waiting for output
-                    return read_characters
+                    return
 
         append_to_output = ""
 
@@ -190,15 +191,16 @@ class MagmaKernel(Kernel):
                     tmpfile.flush()
                     fsync(tmpfile.fileno())
                     self.child.sendline(f'load "{tmpfile.name}";')
-                    read_characters = wait_for_output(tmpfile.name)
+                    wait_for_output(tmpfile.name)
             else:
                 for line in code.splitlines():
                     self.child.sendline(line)
-                    read_characters = wait_for_output()
+                    wait_for_output()
         except KeyboardInterrupt:
             self.child.sendintr()
             interrupted = True
-            self.child.expect_exact(self._prompt)
+            wait_for_output()
+            append_to_output = "Interrupted"
         except EOF:
             append_to_output = "Restarting Magma"
             self._start_magma()
@@ -210,7 +212,7 @@ class MagmaKernel(Kernel):
                 "stream",
                 {
                     "name": "stdout",
-                    "text": self.child.before[read_characters:] + append_to_output,
+                    "text": self.child.before[read_characters[0]:] + append_to_output,
                 },
             )
 
