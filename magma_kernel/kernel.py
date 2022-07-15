@@ -191,15 +191,15 @@ class MagmaKernel(Kernel):
                     tmpfile.flush()
                     fsync(tmpfile.fileno())
                     self.child.sendline(f'load "{tmpfile.name}";')
-                    wait_for_output(tmpfile.name)
+                    wait_for_output(read_characters, tmpfile.name)
             else:
                 for line in code.splitlines():
                     self.child.sendline(line)
-                    wait_for_output()
+                    wait_for_output(read_characters)
         except KeyboardInterrupt:
             self.child.sendintr()
             interrupted = True
-            wait_for_output()
+            wait_for_output(read_characters)
             append_to_output = "Interrupted"
         except EOF:
             append_to_output = "Restarting Magma"
