@@ -128,6 +128,7 @@ class MagmaKernel(Kernel):
         read_characters = [0]
 
         def wait_for_output(read_characters, filename=None):
+            read_characters[0] = 0
             # this function will *modify* the read_characters[0]
             # If one send the code block via a temporary file one needs to
             # to remove temporary filename references from the output.
