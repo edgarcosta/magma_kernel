@@ -179,24 +179,21 @@ class MagmaKernel(Kernel):
         append_to_output = ""
 
         try:
-            # if the code block is long write it into a file and load it in magma
-            # this takes about as the same time as sending a single line, and thus
+            # We use a temporary file to send each cell
+            # this takes about as the same time as sending a single line, but has several benefits:
+            # - handles long cells, I wasn't able to send a line longer than 2^16 character.
+            # - catches lack of end statements
             # we check the length of the whole code block
-            # WARNING: the more obvious workaround of splitting each long line into
-            # several small escaped lines, doesn't work, as we hit other system limits.
-            # For example, I wasn't able to send a line longer that 2^16 character.
-            if len(code) > self.max_input_line_size:
-                # send the line via a temporary file
-                with NamedTemporaryFile("w+t") as tmpfile:
-                    tmpfile.write(code + "\n")
-                    tmpfile.flush()
-                    fsync(tmpfile.fileno())
-                    self.child.sendline(f'load "{tmpfile.name}";')
-                    wait_for_output(read_characters, tmpfile.name)
-            else:
-                for line in code.splitlines():
-                    self.child.sendline(line)
-                    wait_for_output(read_characters)
+
+
+            # send the line via a temporary file
+            with NamedTemporaryFile("w+t") as tmpfile:
+                tmpfile.write(code + "\n")
+                tmpfile.flush()
+                fsync(tmpfile.fileno())
+                self.child.sendline(f'load "{tmpfile.name}";')
+                wait_for_output(read_characters, tmpfile.name)
+
         except KeyboardInterrupt:
             self.child.sendintr()
             interrupted = True
@@ -237,7 +234,7 @@ class MagmaKernel(Kernel):
         }
         # optimizing to not send everything
         token = code[:cursor_pos]
-        for sep in ["\n", ";", " "]:  # we just need the last chunk
+        for sep in ["\n", ";", " ", "("]:  # we just need the last chunk
             token = token.rpartition(sep)[-1]
         if not token:
             return default
