@@ -34,10 +34,41 @@ def _is_root():
         return False  # assume not an admin on non-Unix platforms
 
 
-def main(argv=[]):
-    user = "--user" in argv or not _is_root()
-    install_my_kernel_spec(user=user)
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description='Install KernelSpec for Magma kernel'
+    )
+    prefix_locations = parser.add_mutually_exclusive_group()
 
+    prefix_locations.add_argument(
+        '--user',
+        help='Install KernelSpec in user\'s home directory',
+        action='store_true'
+    )
+    prefix_locations.add_argument(
+        '--sys-prefix',
+        help='Install KernelSpec in sys.prefix. Useful in conda / virtualenv',
+        action='store_true',
+        dest='sys_prefix'
+    )
+    prefix_locations.add_argument(
+        '--prefix',
+        help='Install KernelSpec in this prefix',
+        default=None
+    )
 
-if __name__ == "__main__":
-    main(argv=sys.argv)
+    args = parser.parse_args(argv)
+
+    user = False
+    prefix = None
+    if args.sys_prefix:
+        prefix = sys.prefix
+    elif args.prefix:
+        prefix = args.prefix
+    elif args.user or not _is_root():
+        user = True
+
+    install_my_kernel_spec(user=user, prefix=prefix)
+
+if __name__ == '__main__':
+    main(sys.argv)
