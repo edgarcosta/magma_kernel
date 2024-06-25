@@ -59,7 +59,7 @@ def main(argv=None):
         default=None
     )
 
-    args = parser.parse_args(argv)
+    args, _ = parser.parse_known_args(argv)
 
     user = False
     prefix = None
@@ -73,4 +73,4 @@ def main(argv=None):
     install_my_kernel_spec(user=user, prefix=prefix)
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main(argv=sys.argv)
