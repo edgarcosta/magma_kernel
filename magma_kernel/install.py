@@ -3,8 +3,10 @@ import os
 import shutil
 import sys
 
+import argparse
 from jupyter_client.kernelspec import KernelSpecManager
 from IPython.utils.tempdir import TemporaryDirectory
+
 
 kernel_json = {
     "argv": [sys.executable, "-m", "magma_kernel", "-f", "{connection_file}"],
