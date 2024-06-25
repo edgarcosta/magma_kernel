@@ -3,7 +3,7 @@ import os
 import shutil
 import sys
 
-from jupyter_client.kernelspec import install_kernel_spec
+from jupyter_client.kernelspec import KernelSpecManager
 from IPython.utils.tempdir import TemporaryDirectory
 
 kernel_json = {
@@ -15,7 +15,7 @@ kernel_json = {
 }
 
 
-def install_my_kernel_spec(user=True):
+def install_my_kernel_spec(user=True, prefix=None):
     with TemporaryDirectory() as td:
         os.chmod(td, 0o755)  # Starts off as 700, not user readable
         with open(os.path.join(td, "kernel.json"), "w") as f:
@@ -24,7 +24,7 @@ def install_my_kernel_spec(user=True):
         shutil.copy("magma_kernel/logo-64x64.png", td)
 
         print("Installing IPython kernel spec")
-        install_kernel_spec(td, "magma", user=user, replace=True)
+        KernelSpecManager().install_kernel_spec(td, "magma", user=user, replace=True, prefix=prefix)
 
 
 def _is_root():
