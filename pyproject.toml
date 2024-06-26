@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="magma_kernel"
-version=0.0.3
+version="0.0.3"
 description="A magma kernel for Jupyter"
 authors=[{name = "Edgar Costa", email = "edgarc@mit.edu"}]
 license={text = "BSD 3-Clause License"}
