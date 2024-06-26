@@ -9,7 +9,7 @@ class install(_install):
     def run(self):
         # run from distutils install
         _install.run(self)
-        from magma_kernel.install import main
+        from .magma_kernel.install import main
 
         main(argv=sys.argv)
 
