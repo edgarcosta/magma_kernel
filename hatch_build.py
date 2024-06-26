@@ -41,13 +41,3 @@ class CustomHook(BuildHookInterface):
             KernelSpecManager().install_kernel_spec(td, 'magma', user=False, prefix=prefix)
 
 
-    with TemporaryDirectory() as td:
-        os.chmod(td, 0o755)  # Starts off as 700, not user readable
-        with open(os.path.join(td, "kernel.json"), "w") as f:
-            json.dump(kernel_json, f, sort_keys=True)
-        # TODO: Copy resources once they're specified
-        shutil.copy("magma_kernel/logo-64x64.png", td)
-
-        print("Installing IPython kernel spec")
-        KernelSpecManager().install_kernel_spec(td, "magma", user=user, replace=True, prefix=prefix)
-
