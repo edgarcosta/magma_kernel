@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="magma_kernel"
+version=0.0.3
+description="A magma kernel for Jupyter"
+authors=[{name = "Edgar Costa", email = "edgarc@mit.edu"}]
+license={text = "BSD 3-Clause License"}
+keywords=["magma", "kernel", "jupyter"]
+readme = "README.md"
+classifiers=[
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "License :: OSI Approved :: BSD 3-Clause License",
+  "Programming Language :: Python"
+]
+
+
+[project.urls]
+homepage = "https://github.com/edgarcosta/magma_kernel"
+repository = "https://github.com/edgarcosta/magma_kernel"
