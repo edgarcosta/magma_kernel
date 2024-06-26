@@ -9,7 +9,6 @@ name="magma_kernel"
 dynamic = [
     "version",
 ]
-version="0.0.3"
 description="A magma kernel for Jupyter"
 authors=[{name = "Edgar Costa", email = "edgarc@mit.edu"}]
 license={text = "BSD 3-Clause License"}
