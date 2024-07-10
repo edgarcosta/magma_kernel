@@ -45,7 +45,7 @@ class MagmaKernel(Kernel):
         sig = signal.signal(signal.SIGINT, signal.SIG_DFL)
         try:
             magma = spawn(
-                "magma",
+                "magma -b",
                 echo=False,
                 encoding="utf-8",
                 maxread=4194304,
