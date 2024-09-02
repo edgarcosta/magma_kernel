@@ -27,7 +27,7 @@ class MagmaKernel(Kernel):
     language_info = {
         "name": "magma",
         "codemirror_mode": "pascal",
-        "mimetype": "text/x-magma",
+        "mimetype": "text/x-pascal",
         "file_extension": ".m",
     }
 
