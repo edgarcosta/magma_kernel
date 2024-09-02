@@ -45,7 +45,7 @@ class MagmaKernel(Kernel):
         sig = signal.signal(signal.SIGINT, signal.SIG_DFL)
         try:
             magma = spawn(
-                "magma",
+                "magma -b",
                 echo=False,
                 encoding="utf-8",
                 maxread=4194304,
@@ -53,7 +53,6 @@ class MagmaKernel(Kernel):
                 codec_errors="ignore",
             )
             magma.expect_exact("> ")
-            banner = magma.before
             magma.sendline("SetColumns(0);")
             magma.expect_exact("> ")
             magma.sendline("SetAutoColumns(false);")
@@ -77,7 +76,9 @@ class MagmaKernel(Kernel):
         except OSError:
             # if we can't compute the PTY limit take something minimum that we are aware of
             self.max_input_line_size = 255
-        lang_version = re.search(r"Magma V(\d*.\d*-\d*)", banner).group(1)
+        self.child.sendline('Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();')
+        self.child.expect_exact(self._prompt)
+        lang_version = self.child.before.strip('\n')
         self.banner = "Magma kernel connected to Magma " + lang_version
         self.language_info["version"] = lang_version
         self.language_version = lang_version
