@@ -24,7 +24,7 @@ If you are using [SageMath](http://www.sagemath.org/), you can install `magma_ke
 sage -pip install git+https://github.com/edgarcosta/magma_kernel.git
 ```
 
-if you are using [Jupyter](https://jupyter.org/) as a standalone, you can install `magma_kernel` by doing
+If you are using [Jupyter](https://jupyter.org/) as a standalone, you can install `magma_kernel` by doing
 
 ```
 pip install git+https://github.com/edgarcosta/magma_kernel.git
