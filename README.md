@@ -16,7 +16,7 @@ A simple IPython kernel for magma.
 
 You must have [Jupyter](https://jupyter.org/) installed in your system. For example, it comes with
 [SageMath](http://www.sagemath.org/).
-If are using [SageMath](http://www.sagemath.org/), you can install `magma_kernel` by doing:
+If you are using [SageMath](http://www.sagemath.org/), you can install `magma_kernel` by doing:
 
 ```
 sage -pip install git+https://github.com/edgarcosta/magma_kernel.git
