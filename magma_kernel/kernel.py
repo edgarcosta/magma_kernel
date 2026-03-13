@@ -63,6 +63,12 @@ class MagmaKernel(Kernel):
         self.language_info["version"] = lang_version
         self.language_version = lang_version
 
+    def do_shutdown(self, restart):
+        self.child.close(force=True)
+        if restart:
+            self._start_magma()
+        return {"status": "ok", "restart": restart}
+
     def do_help(self, keyword):
         safe_keyword = html.escape(keyword)
         URL = (
