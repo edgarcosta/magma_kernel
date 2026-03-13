@@ -2,21 +2,12 @@ from ipykernel.kernelbase import Kernel
 from pexpect import EOF, TIMEOUT, spawn
 from tempfile import NamedTemporaryFile
 
-from os import path, fpathconf, fsync
-import re
+from os import fsync
+import html
 import signal
 import traceback
 
-from codecs import open
-
-
-def readfile(filename):
-    with open(filename, encoding="utf-8") as f:
-        return f.read()
-
-
-__version__ = readfile(path.join(path.dirname(__file__), "VERSION"))
-version_pat = re.compile(r"version (\d+(\.\d+)+)")
+from . import __version__
 
 
 class MagmaKernel(Kernel):
@@ -32,7 +23,7 @@ class MagmaKernel(Kernel):
     }
 
     def __init__(self, **kwargs):
-        Kernel.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         # sets child, banner, language_info, language_version
 
         self._start_magma()
@@ -65,17 +56,6 @@ class MagmaKernel(Kernel):
         finally:
             signal.signal(signal.SIGINT, sig)
 
-        # figure out the maximum length of a formatted input line
-        try:
-            # Linux 4096
-            # OSX 1024
-            # Solaris 256
-            self.max_input_line_size = (
-                int(fpathconf(self.child.child_fd, "PC_MAX_CANON")) - 1
-            )
-        except OSError:
-            # if we can't compute the PTY limit take something minimum that we are aware of
-            self.max_input_line_size = 255
         self.child.sendline('Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();')
         self.child.expect_exact(self._prompt)
         lang_version = self.child.before.strip('\n')
@@ -84,14 +64,15 @@ class MagmaKernel(Kernel):
         self.language_version = lang_version
 
     def do_help(self, keyword):
+        safe_keyword = html.escape(keyword)
         URL = (
             "http://magma.maths.usyd.edu.au/magma/handbook/search?chapters=1&examples=1&intrinsics=1&query="
-            + keyword
+            + safe_keyword
         )
         content = {
             "data": {
                 "text/html": '<a href="{}" target="magma_help">Magma help on {}</a>'.format(
-                    URL, keyword
+                    URL, safe_keyword
                 ),
                 "text/plain": "Link to {}".format(URL),
             },
