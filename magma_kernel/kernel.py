@@ -186,15 +186,13 @@ class MagmaKernel(Kernel):
             self._start_magma()
 
         if not silent:
-            # Send standard output
-            self.send_response(
-                self.iopub_socket,
-                "stream",
-                {
-                    "name": "stdout",
-                    "text": self.child.before[read_characters[0]:] + append_to_output,
-                },
-            )
+            text = self.child.before[read_characters[0]:] + append_to_output
+            if text:
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {"name": "stdout", "text": text},
+                )
 
         if interrupted:
             return {"status": "abort", "execution_count": self.execution_count}
