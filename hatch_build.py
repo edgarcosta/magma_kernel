@@ -1,4 +1,3 @@
-import argparse
 import json
 import os
 import shutil
@@ -7,7 +6,7 @@ import sys
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 from jupyter_client.kernelspec import KernelSpecManager
-from IPython.utils.tempdir import TemporaryDirectory
+from tempfile import TemporaryDirectory
 
 
 kernel_json = {
