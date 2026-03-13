@@ -3,6 +3,7 @@ from pexpect import EOF, TIMEOUT, spawn
 from tempfile import NamedTemporaryFile
 
 from os import fsync
+from urllib.parse import quote
 import html
 import signal
 import traceback
@@ -70,10 +71,11 @@ class MagmaKernel(Kernel):
         return {"status": "ok", "restart": restart}
 
     def do_help(self, keyword):
+        url_keyword = quote(keyword)
         safe_keyword = html.escape(keyword)
         URL = (
             "http://magma.maths.usyd.edu.au/magma/handbook/search?chapters=1&examples=1&intrinsics=1&query="
-            + safe_keyword
+            + url_keyword
         )
         content = {
             "data": {
