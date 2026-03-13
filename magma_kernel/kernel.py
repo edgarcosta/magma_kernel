@@ -135,10 +135,13 @@ class MagmaKernel(Kernel):
                     output = self.child.before[read_characters[0]:]
                     if read_characters[0] == 0 and filename:
                         # Remove the "Loading filename" line
-                        assert output.startswith(
-                            f'Loading "{filename}"'
-                        ), "First line doesn't match expected outcome: " + repr(output)
-                        output = output.partition("\n")[-1]  # consume first line
+                        if output.startswith(f'Loading "{filename}"'):
+                            output = output.partition("\n")[-1]  # consume first line
+                        else:
+                            self.log.warning(
+                                "First line doesn't match expected outcome: %r",
+                                output,
+                            )
                     if filename:
                         # in case of error remove temporary filename from output
                         output = output.replace(infile_line, "In ", 1)
