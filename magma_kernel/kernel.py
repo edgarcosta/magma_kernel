@@ -261,7 +261,7 @@ class MagmaKernel(Kernel):
             token = token.rpartition(sep)[-1]
         if not token:
             return default
-        token_escaped = token.replace('"', r"\"")
+        token_escaped = token.replace("\\", "\\\\").replace('"', '\\"')
         self.child.sendline(f'Completion("{token_escaped}", {len(token)});')
         self.child.expect_exact(self._prompt)
         if self.child.before == "DIE\n":
@@ -280,7 +280,12 @@ class MagmaKernel(Kernel):
             cursor_start = cursor_pos - len(token) + int(matches[1])
             cursor_end = cursor_pos - len(token) + int(matches[1]) + int(matches[2])
             matches = matches[3:]
-            assert matches_len == len(matches)
+            if matches_len != len(matches):
+                self.log.warning(
+                    "Completion count mismatch: expected %d, got %d",
+                    matches_len, len(matches),
+                )
+                return default
         except Exception:
             self.log.error("Failed to complete: \n" + traceback.format_exc())
             return default
