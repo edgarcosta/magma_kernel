@@ -9,9 +9,10 @@ name="magma_kernel"
 dynamic = [
     "version",
 ]
-description="A magma kernel for Jupyter"
+description="A Magma kernel for Jupyter"
 authors=[{name = "Edgar Costa", email = "edgarc@mit.edu"}]
 license={text = "BSD License"}
+requires-python = ">=3.8"
 keywords=["magma", "kernel", "jupyter"]
 readme = "README.md"
 classifiers=[
@@ -19,7 +20,8 @@ classifiers=[
   "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering :: Mathematics",
   "License :: OSI Approved :: BSD License",
-  "Programming Language :: Python"
+  "Programming Language :: Python :: 3",
+  "Framework :: Jupyter",
 ]
 dependencies = [
     "pexpect",
@@ -28,8 +30,9 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/edgarcosta/magma_kernel"
-repository = "https://github.com/edgarcosta/magma_kernel"
+Homepage = "https://github.com/edgarcosta/magma_kernel"
+Repository = "https://github.com/edgarcosta/magma_kernel"
+Issues = "https://github.com/edgarcosta/magma_kernel/issues"
 
 [tool.hatch.version]
 path = "magma_kernel/__init__.py"
