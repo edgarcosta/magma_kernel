@@ -60,6 +60,8 @@ class MagmaKernel(Kernel):
             magma.expect_exact("> ", timeout=30)
             magma.sendline(f'SetPrompt("{self._prompt}");')
             magma.expect_exact(self._prompt, timeout=30)
+            magma.sendline('Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();')
+            magma.expect_exact(self._prompt, timeout=30)
             self.child = magma
         except (TIMEOUT, EOF) as exc:
             raise RuntimeError(
@@ -68,8 +70,6 @@ class MagmaKernel(Kernel):
         finally:
             signal.signal(signal.SIGINT, sig)
 
-        self.child.sendline('Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();')
-        self.child.expect_exact(self._prompt, timeout=30)
         lang_version = self.child.before.strip('\n')
         self.banner = "Magma kernel connected to Magma " + lang_version
         self.language_info["version"] = lang_version
