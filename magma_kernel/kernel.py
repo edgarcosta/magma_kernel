@@ -46,25 +46,30 @@ class MagmaKernel(Kernel):
                 "magma -b",
                 echo=False,
                 encoding="utf-8",
+                timeout=30,
                 maxread=4194304,
                 ignore_sighup=True,
                 codec_errors="ignore",
             )
-            magma.expect_exact("> ")
+            magma.expect_exact("> ", timeout=30)
             magma.sendline("SetColumns(0);")
-            magma.expect_exact("> ")
+            magma.expect_exact("> ", timeout=30)
             magma.sendline("SetAutoColumns(false);")
-            magma.expect_exact("> ")
+            magma.expect_exact("> ", timeout=30)
             magma.sendline("SetLineEditor(false);")
-            magma.expect_exact("> ")
+            magma.expect_exact("> ", timeout=30)
             magma.sendline(f'SetPrompt("{self._prompt}");')
-            magma.expect_exact(self._prompt)
+            magma.expect_exact(self._prompt, timeout=30)
             self.child = magma
+        except (TIMEOUT, EOF) as exc:
+            raise RuntimeError(
+                "Failed to start Magma. Ensure 'magma' is on your PATH and functioning."
+            ) from exc
         finally:
             signal.signal(signal.SIGINT, sig)
 
         self.child.sendline('Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();')
-        self.child.expect_exact(self._prompt)
+        self.child.expect_exact(self._prompt, timeout=30)
         lang_version = self.child.before.strip('\n')
         self.banner = "Magma kernel connected to Magma " + lang_version
         self.language_info["version"] = lang_version
@@ -75,6 +80,14 @@ class MagmaKernel(Kernel):
         if restart:
             self._start_magma()
         return {"status": "ok", "restart": restart}
+
+    def do_is_complete(self, code):
+        code = code.strip()
+        if not code:
+            return {"status": "incomplete", "indent": ""}
+        if code.endswith(";"):
+            return {"status": "complete"}
+        return {"status": "incomplete", "indent": "    "}
 
     def do_help(self, keyword):
         url_keyword = quote(keyword)
