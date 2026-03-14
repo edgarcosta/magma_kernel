@@ -5,10 +5,16 @@ from tempfile import NamedTemporaryFile
 from os import fsync
 from urllib.parse import quote
 import html
+import re
 import signal
 import traceback
 
 from . import __version__
+
+_ERROR_RE = re.compile(
+    r"^((?:Runtime|User|Internal) error[^:\n]*):\s*(.*)",
+    re.MULTILINE,
+)
 
 
 class MagmaKernel(Kernel):
@@ -116,6 +122,7 @@ class MagmaKernel(Kernel):
 
         interrupted = False
         read_characters = [0]
+        collected_output = []
 
         def wait_for_output(read_characters, filename=None):
             read_characters[0] = 0
@@ -149,6 +156,7 @@ class MagmaKernel(Kernel):
                         output = output.replace(infile_line, "In ", 1)
 
                     if output:
+                        collected_output.append(output)
                         self.send_response(
                             self.iopub_socket,
                             "stream",
@@ -199,6 +207,7 @@ class MagmaKernel(Kernel):
         if not silent:
             text = self.child.before[read_characters[0]:] + append_to_output
             if text:
+                collected_output.append(text)
                 self.send_response(
                     self.iopub_socket,
                     "stream",
@@ -207,6 +216,16 @@ class MagmaKernel(Kernel):
 
         if interrupted:
             return {"status": "abort", "execution_count": self.execution_count}
+
+        error_match = _ERROR_RE.search("".join(collected_output))
+        if error_match:
+            return {
+                "status": "error",
+                "execution_count": self.execution_count,
+                "ename": error_match.group(1),
+                "evalue": error_match.group(2),
+                "traceback": [],
+            }
 
         return {
             "status": "ok",
