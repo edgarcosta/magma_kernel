@@ -1,4 +1,5 @@
 import html
+import os
 import re
 import traceback
 from urllib.parse import quote
@@ -42,6 +43,9 @@ _ERROR_RE = re.compile(
     r"^((?:Runtime|User|Internal) error[^:\n]*):\s*(.*)",
     re.MULTILINE,
 )
+
+# Line magic pattern: %magic [args]
+_LINE_MAGIC_RE = re.compile(r"^%(\w+)\s*(.*)", re.DOTALL)
 
 _HANDBOOK_BASE = (
     "http://magma.maths.usyd.edu.au/magma/handbook/search?"
@@ -209,6 +213,108 @@ class MagmaKernel(Kernel):
         }
         self.send_response(self.iopub_socket, "display_data", content)
 
+    def _handle_magic(self, code, silent, allow_stdin):
+        """Try to handle a line magic. Returns a reply dict, or None."""
+        m = _LINE_MAGIC_RE.match(code.lstrip())
+        if not m:
+            return None
+
+        magic = m.group(1).lower()
+        args = m.group(2).strip()
+
+        if magic == "time":
+            return self._magic_time(args, silent, allow_stdin)
+        elif magic == "load":
+            return self._magic_load(args, silent, allow_stdin)
+        elif magic in ("who", "whos"):
+            return self._magic_who(silent)
+        else:
+            return None  # unknown magic, treat as Magma code
+
+    def _magic_time(self, code, silent, allow_stdin):
+        """Time execution of code."""
+        if not code:
+            if not silent:
+                self.send_response(
+                    self.iopub_socket, "stream",
+                    {"name": "stderr", "text": "Usage: %time <code>\n"},
+                )
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        if not code.endswith(";"):
+            code += ";"
+
+        timed_code = f"__t := Cputime(); {code} Cputime(__t);"
+        return self._execute_code(timed_code, silent, allow_stdin)
+
+    def _magic_load(self, args, silent, allow_stdin):
+        """Load a .m file into the cell."""
+        filename = args.strip().strip("'\"")
+        if not filename:
+            if not silent:
+                self.send_response(
+                    self.iopub_socket, "stream",
+                    {"name": "stderr", "text": "Usage: %load <filename>\n"},
+                )
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        try:
+            with open(filename) as f:
+                code = f.read()
+        except OSError as exc:
+            if not silent:
+                self.send_response(
+                    self.iopub_socket, "stream",
+                    {"name": "stderr", "text": f"Cannot read {filename}: {exc}\n"},
+                )
+            return {
+                "status": "error",
+                "execution_count": self.execution_count,
+                "ename": "FileError",
+                "evalue": str(exc),
+                "traceback": [],
+            }
+
+        return self._execute_code(code, silent, allow_stdin)
+
+    def _magic_who(self, silent):
+        """List user-defined identifiers."""
+        if not self.process.alive:
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        stdout, _ = self._magma_eval(
+            'S := GetIdentifierNames("assigned_below"); '
+            'for s in S do print s; end for;'
+        )
+
+        if not silent and stdout.strip():
+            self.send_response(
+                self.iopub_socket, "stream",
+                {"name": "stdout", "text": stdout},
+            )
+
+        return {
+            "status": "ok",
+            "execution_count": self.execution_count,
+            "payload": [],
+            "user_expressions": {},
+        }
+
     def _execute_code(self, code, silent, allow_stdin):
         """Execute Magma code and return a Jupyter reply dict."""
         if not self.process.alive:
@@ -318,6 +424,11 @@ class MagmaKernel(Kernel):
                 "payload": [],
                 "user_expressions": {},
             }
+
+        # Try line magic
+        magic_result = self._handle_magic(code, silent, allow_stdin)
+        if magic_result is not None:
+            return magic_result
 
         if not code.endswith(";"):
             code += ";"

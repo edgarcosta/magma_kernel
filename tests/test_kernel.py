@@ -6,6 +6,7 @@ available on PATH.  They are skipped automatically when Magma is absent.
 Run with:  pytest tests/test_kernel.py -v
 """
 
+import os
 import shutil
 import time
 
@@ -559,6 +560,59 @@ def test_inspect_empty(kc):
 
 
 # --- History ---
+
+
+# --- Magics ---
+
+
+def test_magic_time(kc):
+    """%time reports CPU time."""
+    reply, stdout, stderr, _ = _execute(kc, "%time x := &+[i : i in [1..10000]];")
+    assert reply["status"] == "ok"
+    assert stdout  # timing output
+
+
+def test_magic_time_bare(kc):
+    """%time with no arguments gives usage."""
+    reply, stdout, stderr, _ = _execute(kc, "%time")
+    assert reply["status"] == "ok"
+    assert "Usage" in stderr
+
+
+def test_magic_who(kc):
+    """%who lists user-defined identifiers."""
+    _execute(kc, "magic_who_test := 42;")
+    reply, stdout, stderr, _ = _execute(kc, "%who")
+    assert reply["status"] == "ok"
+
+
+def test_magic_load(kc):
+    """%load executes a .m file."""
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".m", delete=False) as f:
+        f.write("load_result := 123;\nload_result;\n")
+        f.flush()
+        path = f.name
+    try:
+        reply, stdout, stderr, _ = _execute(kc, f"%load {path}")
+        assert reply["status"] == "ok"
+        assert "123" in stdout
+    finally:
+        os.unlink(path)
+
+
+def test_magic_load_missing(kc):
+    """%load with a missing file gives an error."""
+    reply, stdout, stderr, _ = _execute(kc, "%load /nonexistent/file.m")
+    assert reply["status"] == "error"
+    assert "Cannot read" in stderr
+
+
+def test_magic_unknown_is_magma_code(kc):
+    """An unknown %magic is treated as regular Magma code."""
+    reply, stdout, stderr, _ = _execute(kc, "%notamagic")
+    # Sent to Magma as-is (with semicolon appended)
+    assert reply["status"] in ("ok", "error")
 
 
 def test_history_tail(kc):

@@ -517,6 +517,45 @@ class TestExtractToken:
 
 
 # ===================================================================
+# Magic parsing
+# ===================================================================
+
+
+class TestMagicParsing:
+    """Tests for _LINE_MAGIC_RE pattern."""
+
+    def test_time_magic(self):
+        from magma_kernel.kernel import _LINE_MAGIC_RE
+        m = _LINE_MAGIC_RE.match("%time x := 1;")
+        assert m
+        assert m.group(1) == "time"
+        assert m.group(2).strip() == "x := 1;"
+
+    def test_who_magic(self):
+        from magma_kernel.kernel import _LINE_MAGIC_RE
+        m = _LINE_MAGIC_RE.match("%who")
+        assert m
+        assert m.group(1) == "who"
+
+    def test_load_magic(self):
+        from magma_kernel.kernel import _LINE_MAGIC_RE
+        m = _LINE_MAGIC_RE.match("%load foo.m")
+        assert m
+        assert m.group(1) == "load"
+        assert m.group(2).strip() == "foo.m"
+
+    def test_not_magic(self):
+        from magma_kernel.kernel import _LINE_MAGIC_RE
+        m = _LINE_MAGIC_RE.match("x := 1;")
+        assert m is None
+
+    def test_percent_in_middle(self):
+        from magma_kernel.kernel import _LINE_MAGIC_RE
+        m = _LINE_MAGIC_RE.match("x := 5 % 3;")
+        assert m is None  # % not at start
+
+
+# ===================================================================
 # _apply_tb_indent_heuristic
 # ===================================================================
 
