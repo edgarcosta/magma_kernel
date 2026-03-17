@@ -8,7 +8,6 @@ from ipykernel.kernelbase import Kernel
 
 from . import __version__
 from .protocol import (
-    ExecutionResult,
     InputAborted,
     MagmaCallbacks,
     MagmaProcess,
@@ -127,7 +126,7 @@ class MagmaKernel(Kernel):
     def _start_magma(self):
         magma_path = os.environ.get("MAGMA_PATH", "magma")
         self.process = MagmaProcess(magma_path=magma_path, logger=self.log)
-        banner_text = self.process.start()
+        self.process.start()
 
         # Query version
         output_parts = []
