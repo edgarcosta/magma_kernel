@@ -292,8 +292,9 @@ class MagmaKernel(Kernel):
         if not code.endswith(";"):
             code += ";"
 
+        original_code = code
         timed_code = f"__t := Cputime(); {code} Cputime(__t);"
-        return self._execute_code(timed_code, silent, allow_stdin)
+        return self._execute_code(timed_code, silent, allow_stdin, original_code=original_code)
 
     def _magic_load(self, args, silent, allow_stdin):
         """Load a .m file into the cell."""
