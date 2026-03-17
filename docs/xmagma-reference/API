@@ -1,0 +1,1249 @@
+		  How to interact with magma -x  
+		  =============================
+
+		   Geoff Bailey, December 2024
+
+When invoked with the -x option, Magma switches to a mode where it
+expects that another program is interacting with it.  As a result,
+the way it handles output is different in order to allow the front
+end to distinguish between the various states that it could be in.
+
+There is a slight difference in behaviour if the standard input is
+a terminal (prompts are printed, for a start).  I will ignore this
+as the whole point of the -x option is to have Magma be interacted
+with via a pipe or similar.
+
+
+Simplified model
+----------------
+
+A simplified way of thinking about Magma in -x mode is that it can
+be in one of two states: Waiting for input ("ready"), or executing
+input ("running").  When it receives user input it goes from ready
+to running; while running it may produce output; and once all user
+input has been executed it goes back to being ready again.
+
+Magma actually starts out in the running state, where it does such
+things as printing the banner, loading any startup files, etc.
+
+
+Input
+-----
+
+Input is no longer handled on a line-by-line basis; instead, input
+is accumulated until a designated "end of input" character is sent
+to Magma.  There are two options for this -- the character's value
+can be either 4 (ASCII EOT) or 127 (ASCII DEL).  I do not know why
+there are two options; my personal recommendation would be to just
+use 4 (aka ctrl-D) for this purpose throughout.
+
+End of input is also detected when closing Magma's input (the pipe
+that connects to Magma), of course.  Magma will exit when it tries
+to read more input and fails, but will first process any remaining
+input.
+
+This is arguably the more natural way to do things with a web-like
+front end, Jupyter notebook, or similar, where the input resembles
+an editor -- the user writes the desired commands (or modifies the
+previous set) and then runs the entire collection once satisfied.
+
+(It also avoids complications which might otherwise arise with the
+read and readi directives.)
+
+The input must consist of complete Magma statements.  If not, then
+an error will result (see the ENE tag for details).  Typical usage
+will not run into this issue.
+
+The term "input set" will be used to refer to such a collection of
+input.
+
+
+Output
+------
+
+When Magma is in the running state it emits "tagged" output.  This
+may provide information about the state of Magma, or could contain
+normal output from the code being executed.  Tagged output is done
+on a line basis; each line of output will begin with a special tag
+marker, followed by a tag, then tag-specific data, and finished by
+a newline.
+
+The tag marker is a byte with value 129; this is unused in most of
+the extended ASCII code pages and not a valid initial byte for the
+UTF-8 coding, so it's not a terrible choice.  My inclination would
+have been to use SOH and STX, though.
+
+Important: Since the tag marker value is larger than 128, care may
+be needed when checking it in platforms/languages which default to
+signed characters.  (This is another reason to prefer SOH/STX.)
+
+The tag will be a short string of uppercase letters; in some cases
+an underscore may be part of the tag.  The tag will be followed by
+either a space (byte value 32) or newline (byte value 10).  In the
+former case it will be followed by further tag-specific data.
+
+Syntax:
+
+    <marker><tag><tag-data><newline>
+
+where
+
+  + <marker> is a byte with value 129.
+  + <tag> is the text giving the name of the tag.  It will consist
+    only of bytes with values between 65 and 90 (inclusive) (ASCII
+    uppercase letters) or with value 95 (ASCII underscore).
+  + <tag-data> is a (possibly empty) sequence of bytes that do not
+    contain any byte with value 10 (ASCII newline character).  The
+    format and meaning of this data depends on the specific tag.
+  + <newline> is a byte with value 10 (ASCII newline character).
+
+In the descriptions below, the <marker> and <newline> entries will
+not be mentioned; we are concerned only with the tag and its data.
+
+
+A note about indentation
+------------------------
+
+Magma frequently indents output to make it more readable.  This is
+done using spaces in the terminal, but the front end might display
+indentation in another way.  For instance, a web-based version may
+use spacer spans of a fixed width, or left-margin hackery.
+
+Magma lets the user set the number of spaces used for indentation;
+the default value is four spaces.  If the front end is not a plain
+terminal then it is encouraged to ignore the user's setting within
+Magma and display indentations however it thinks best.  This might
+involve a setting in the front end for such behaviour instead.
+
+(Also, as mentioned later, getting this value at the right time is
+slightly problematic even if it were desirable.)
+
+Output tags (described later) may specify an indent level; this is
+to be interpreted as the count of indentations to apply before the
+text associated with that output tag is displayed.  In the case of
+a terminal, then, an indent level of k would print 4*k spaces.
+
+If SetColumns(0) has been done then Magma performs no indentation.
+(I don't know why; it seems an odd decision to me.)  Consequently,
+it is recommended not to do this.  Magma's behaviour in -x mode is
+already special and it does not do line wrapping or splitting, and
+thus this should not be necessary.
+
+(By "does not do line splitting", I mean "does not break text with
+a backslash-newline pair".  Long lines may produce multiple output
+statements, but without introducing extra characters.  The section
+on output tags explains this.)
+
+
+Classes of tags
+---------------
+
+There are three classes of tags: Output tags, status tags, and the
+others.  Each class shares a common format, although the last kind
+is a bit loose on that front.  The formats will be described first
+and then the specific tags will be covered later.
+
+
+* Output tags.  Several tags are classed as "output tags" and have
+  an identical format aside from the tag name.  The data is either
+  the indent level to print the output at, or a special flag which
+  indicates that this is a "continuation line".  Then a second tag
+  marker is used, followed by text.  The given text is intended to
+  be displayed to the user.
+
+  Note that the text cannot contain a newline since a newline ends
+  the tag data.  Indeed, the next output text might be intended to
+  follow directly on from it without an intervening newline.  This
+  is controlled by the continuation flag on that next output line,
+  as described below.
+
+  Consequently, the last output line is generally incomplete until
+  the next tag causes output.  If a tag causes output, and expects
+  that output to start a line, then it may need to print a newline
+  before its output.  So it is necessary to track whether there is
+  such a partially-printed line.  Also note that some tags may not
+  cause output besides this newline; RDY is one such instance (see
+  the description for that tag).
+
+  The specific output tag used provides semantic information which
+  the front end may use to change how it displays the output.  The
+  description for such tags will explain this.
+
+  Syntax:
+
+	<tag><space><indent-level><marker><text>
+	<tag><space><continuation-flag><marker><text>
+
+  where
+
+  + <tag> is the text giving the name of the tag.  It will consist
+    only of bytes with values between 65 and 90 (inclusive) (ASCII
+    uppercase letters) or with value 95 (ASCII underscore).
+  + <space> is a byte with value 32 (ASCII space character).
+  + <indent-level> is the usual ASCII printing of an integer.  The
+    integer will not be negative and is expected to be small.
+  + <marker> is a byte with value 129.
+  + <text> is a (possibly empty) sequence of bytes.  At the moment
+    it is limited to having at most 1024 bytes.
+  + <continuation-flag> is a byte with value 67 (ASCII 'C').
+
+  Behaviour:
+
+  There may be some tag-specific behaviour to invoke (described in
+  the section for that tag).  After that, the given text should be
+  displayed.
+
+  If the continuation flag was given, the text should be displayed
+  immediately after the previous line of output (if any) from this
+  input set, without any intervening newline.  If there is no such
+  previous line within this input set, then display the text as if
+  the indent level were given with value 0.
+
+  If the indent level is given then this output starts a new line;
+  if there is a previous line of output for this input set then do
+  the equivalent of emitting a newline for your display.  Then, if
+  the indent level is positive, display the text after that number
+  of indentations.  If using terminal output, the default printing
+  for one indentation is four spaces.
+
+  Note: The user can change the number of spaces in an indentation
+  with the SetIndent() intrinsic.  Unfortunately, there is no good
+  way to use this.  The detailed description of the RDY tag says a
+  little about this situation.
+
+
+* Status tags.  Several tags are classed as "status tags" and have
+  an identical format aside from the tag name.  In fact, that name
+  is the entirety of the data for the tag.
+
+  Loosely speaking, such tags indicate a change in the interpreter
+  state; they may be accompanied by other tags which provide extra
+  information.
+
+  Syntax:
+
+	<tag>
+
+  where
+
+  + <tag> is the text giving the name of the tag.  It will consist
+    only of bytes with values between 65 and 90 (inclusive) (ASCII
+    uppercase letters) or with value 95 (ASCII underscore).
+
+  Behaviour:
+
+  Some status tags are informational only; others may require that
+  the front end act in a certain way.  The specifics will be given
+  in the section for each tag.
+
+
+* Data tags.  The remaining four tags (RDY, RUN, ERP, and POS) are
+  classed as data tags.  They are similar to status tags, but come
+  with information that can be used to provide extra functionality
+  in the front end.
+
+  Syntax:
+
+	<tag>[<space><integer>]*
+
+  where
+
+  + <tag> is the text giving the name of the tag.  It will consist
+    only of bytes with values between 65 and 90 (inclusive) (ASCII
+    uppercase letters) or with value 95 (ASCII underscore).
+  + <space> is a byte with value 32 (ASCII space character).
+  + <integer> is the usual ASCII printing of an integer; this will
+    never be negative, and will always fit within 64 bits.
+
+  and '[', ']', and '*' have their usual meaning when in a regular
+  expression context.  i.e., the above indicates that the tag will
+  be followed by some number of instances of <space> and <integer>
+  (the specific number is determined by the tag).
+
+  Behaviour:
+
+  These tags usually indicate a status change, but come with extra
+  information which may be useful.  The specifics for each tag are
+  in the appropriate section, of course.
+
+
+Tags (short version)
+--------------------
+
+Here's the possible tags, in rough order of necessity to implement
+in order to develop a working interface.  The meaning of the extra
+information in data tags will be skipped here and explained in the
+more detailed section later.
+
+In the following, it is implicitly assumed that each input set has
+its own output section.  This is very likely the case; even if the
+terminal is being used, the input splits the output into sections.
+
+
+* OUT is used for regular output from Magma.  It is an output tag.
+  No special behaviour is invoked prior to printing the text.
+
+  Syntax:
+
+	OUT<space><indent-level><marker><text>
+	OUT<space><continuation-flag><marker><text>
+
+  Meanings and behaviour are as described for output tags above.
+
+  Semantics:
+
+  There are no special semantics for this tag.
+
+
+* RDY indicates that Magma has finished with the current input set
+  and is awaiting another one.  It is a data tag with five integer
+  arguments.  The first four are either 0 or 1, while the fifth is
+  non-negative and expected to be small in practice.
+
+  The meaning of these integers is covered in the detailed section
+  later.
+
+  Syntax:
+
+	RDY[<space><flag>]{4}<space><integer>
+
+  where
+
+  + <space> is a byte with value 32 (ASCII space character).
+  + <flag> is a byte with value 48 (ASCII 0) or 49 (ASCII 1).
+  + <integer> is the usual ASCII printing of an integer.
+
+  and the '[..]{4}' notation indicates four instances of the items
+  inside the square brackets.
+
+  Behaviour:
+
+  The calling program should seek another input set from the user,
+  possibly after printing a prompt.
+
+  Note: If the user was using the magma debugger (see the DRDY tag
+  for more information), the presence of a RDY tag means that they
+  have exited the debugger and the front end should handle that as
+  appropriate.
+
+
+* IR is a status tag, which indicates that input has been received
+  and is about to be acted on.  It should only appear as the first
+  line of response to an input set.
+
+  Syntax:
+
+	IR
+
+  Behaviour:
+
+  No behaviour is called for.  This tag seems entirely superfluous
+  to me.
+
+
+* RUN indicates that Magma is about to run the next statement from
+  the input set.  It is a data tag with six integer arguments; all
+  are non-negative.  The second argument potentially uses 64 bits,
+  while the others should be at most 32-bits in size.
+
+  The meaning of these integers is covered in the detailed section
+  later.
+
+  Syntax:
+
+	RUN[<space><integer>]{6}
+
+  where
+
+  + <space> is a byte with value 32 (ASCII space character).
+  + <integer> is the usual ASCII printing of an integer.
+
+  and the '[..]{6}' notation denotes six instances of the items in
+  the square brackets.
+
+
+* QUIT is a status tag.  It will be printed as the last thing that
+  Magma does before exiting normally.  It will usually be preceded
+  by an output line giving the time and memory usage statistics.
+
+  Syntax:
+
+	QUIT
+
+  Behaviour:
+
+  The calling program should release any resources associated with
+  the underlying Magma process and its connection to that.  It may
+  need to start a new Magma process if there are more inputs to be
+  dealt with.
+
+  If the front end wishes to display the ending statistics in some
+  alternative fashion, it will need to track the output and handle
+  the line *before* QUIT specially.  This can be fiddly, but it is
+  manageable.
+
+
+* TB is an output tag, used while printing the traceback component
+  of an error.
+
+  Syntax:
+
+	TB<space><indent-level><marker><text>
+	TB<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  However, there is a
+  small problem because the indentation has been lost owing to how
+  Magma manages printing of error objects.  The front end may wish
+  to heuristically insert indentation so as to present this nicely
+  to the user.
+
+  A rule of thumb that handles most cases: If the text ends in '('
+  or starts with ')' then it should not be indented; otherwise one
+  level of indentation is to be applied.  This is not always right
+  in principle, but in practice it will be almost all of the time.
+
+  (The troublesome case: The function or intrinsic has a name that
+  is so long it needs a continuation line, and thus that line does
+  not end in a '(' and we erroneously indent it.  Correct handling
+  involves tracking the traceback state to know when we expect the
+  first line of a function/intrinsic.  It's not hard, but very low
+  value.)
+
+  Semantics:
+
+  TB indicates that this output is part of a traceback.  This will
+  only occur if an error has arisen; other error tags are expected
+  to follow.
+
+
+* EPO is an output tag.  It is used when printing output about the
+  position of the error.  However, it does this unhelpfully, since
+  it does not provide the position information in a defined format
+  but instead as part of the message that Magma prints.  Also, the
+  "pointer" that Magma usually prints pointing at the start of the
+  error is omitted.
+
+  Syntax:
+
+	EPO<space><indent-level><marker><text>
+	EPO<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  The front end might
+  choose to modify the appearance (e.g., colour) to conform to its
+  policy for displaying errors, if it has one.
+
+  Unfortunately, this only provides a human-readable message about
+  the error position, and does not provide the position separately
+  from that.  Also, the "pointer" that Magma usually gives showing
+  the specific location of the error within the line is missing.
+
+  An example is probably instructive here.  Eliding various parts,
+  here's what the error might look like in normal magma, with 
+
+	[traceback skipped]
+	In file "/tmp/foo.m", line 18, column 13:
+	>>     return 1/x;
+	               ^
+	Runtime error in '/': Division by zero
+
+  And here is the corresponding section of output from magma -x:
+
+	[traceback skipped]
+	?EPO 0In file "/tmp/foo.m", line 18, column 13:
+	?EPO 0>>     return 1/x;
+	?ER 0Runtime error in '/': Division by zero
+	?ER 0
+
+  (The ? denotes the tag marker with value 129.)  The ER indicates
+  a runtime error (covered below).  Note that we get the two lines
+  of human-readable information, but no "pointer" line, nor is the
+  position (column 13) given in a separate tag.
+
+  To provide the in-line location information, the front end needs
+  to parse it out from the first EPO message.  This is not good; I
+  am looking into changing this, but since older magmas need to be
+  supported anyway then this still needs to be handled.
+
+  Semantics:
+
+  EPO indicates that this output provides location information for
+  an error.  This will only occur if an error has arisen, and will
+  be followed by other error-related tags.
+
+
+* ER is an output tag.  It indicates that the message relates to a
+  runtime error.
+
+  Syntax:
+
+	ER<space><indent-level><marker><text>
+	ER<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  The front end might
+  choose to modify the appearance (e.g., colour) to conform to its
+  policy for displaying errors, if it has one.
+
+  Note: Any error stops processing of the current input set.  Thus
+  the next non-ER tag would normally be RDY (DRDY if debugging has
+  been enabled).  However, if the interpreter has been set to quit
+  on errors, the next non-ER tag will be QUIT.  The statistics for
+  the time and memory usage that are printed at the end of a Magma
+  session will have been delivered using ER instead of OUT.
+
+  (I regard that as incorrect behaviour, but have not checked what
+  would be involved in fixing that yet.)
+
+  Semantics:
+
+  ER indicates that this output describes the type of error, which
+  is of the class of runtime errors.  There may be several ER tags
+  in a row (usually at least two).
+
+
+* ERP indicates that an error has occurred while parsing the input
+  set.  It is a data tag with four integer arguments which are all
+  non-negative.
+
+  The meaning of these integers is covered in the detailed section
+  later.
+
+  Syntax:
+
+	ERP[<space><integer>]{4}
+
+  where
+
+  + <space> is a byte with value 32 (ASCII space character).
+  + <integer> is the usual ASCII printing of an integer.
+
+  and the '[..]{4}' notation indicates four instances of the items
+  inside the square brackets.
+
+  Behaviour:
+
+  The tag data contains position information that could be used to
+  identify the malformed statement to the user.  It can be ignored
+  at the cost of baffling the user.  (A textual description of the
+  error will be printed later using the EU tag.)  See the detailed
+  section later for how to interpret and use the tag data.
+
+
+* POS indicates a position within the input set.  It is a data tag
+  with two integer arguments which are all non-negative.
+
+  The meaning of these integers is covered in the detailed section
+  later.
+
+  Syntax:
+
+	POS[<space><integer>]{2}
+
+  where
+
+  + <space> is a byte with value 32 (ASCII space character).
+  + <integer> is the usual ASCII printing of an integer.
+
+  and the '[..]{2}' notation denotes two instances of the items in
+  the square brackets.
+
+  Behaviour:
+
+  The tag data contains position information that could be used to
+  identify the malformed statement to the user.  It can be ignored
+  at the cost of baffling the user.  (A textual description of the
+  error will be printed later using the EU tag.)  See the detailed
+  section later for how to interpret and use the tag data.
+
+
+* EU is an output tag.  It indicates that the message relates to a
+  user error, which in practice means a parsing error.
+
+  Syntax:
+
+	EU<space><indent-level><marker><text>
+	EU<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  The front end might
+  choose to modify the appearance (e.g., colour) to conform to its
+  policy for displaying errors, if it has one.
+
+  Note: Any error stops processing of the current input set.  Thus
+  the next non-EU tag would normally be RDY (DRDY if debugging has
+  been enabled).  However, if the interpreter has been set to quit
+  on errors, the next non-EU tag will be QUIT.  The statistics for
+  the time and memory usage that are printed at the end of a Magma
+  session will have been delivered using EU instead of OUT.
+
+  (I regard that as incorrect behaviour, but have not checked what
+  would be involved in fixing that yet.)
+
+  Semantics:
+
+  EU indicates that this output describes the type of error, which
+  is of the class of user errors.  Typically there is just the one 
+  such tag, but not always (as per the behaviour section above).
+
+
+* EI is an output tag.  It indicates that the message was produced
+  by an internal error.
+
+  Syntax:
+
+	EI<space><indent-level><marker><text>
+	EI<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  The front end might
+  choose to modify the appearance (e.g., colour) to conform to its
+  policy for displaying errors, if it has one.
+
+  Note: Any error stops processing of the current input set.  Thus
+  the next non-EI tag would normally be RDY (DRDY if debugging has
+  been enabled).  However, if the interpreter has been set to quit
+  on errors, the next non-EI tag will be QUIT.  The statistics for
+  the time and memory usage that are printed at the end of a Magma
+  session will have been delivered using EI instead of OUT.
+
+  (I regard that as incorrect behaviour, but have not checked what
+  would be involved in fixing that yet.)
+
+  Semantics:
+
+  EI indicates that this output describes the type of error, which
+  is of the class of internal errors.  There will probably be many
+  EI lines for a single error.
+
+
+* LST is an output tag.  It is used for data that forms a list and
+  which Magma would usually format into columns.
+
+  Syntax:
+
+	LST<space><indent-level><marker><text>
+	LST<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  However, since this
+  is only used for (possibly long) lists of identifiers, the front
+  end might choose to accumulate all LST outputs first and display
+  them in another way.  For instance, printed in columns or making
+  a collapsible / expandable section for them.
+
+  Semantics:
+
+  LST output is used only for a few special cases corresponding to
+  the outputs of the following intrinsics:
+
+  + ListCategories / ListTypes
+  + ListAttributes
+  + ShowIdentifiers
+
+  as well as the output of the "id" / "identifiers" command in the
+  debugger.
+
+  Note that these are all statements that the front end might wish
+  to run "behind the scenes" in order to give a richer view of the
+  state of Magma.  So care should be taken in such cases to handle
+  this correctly.
+
+* SIG is an output tag.  It is used when printing signatures.
+
+  Syntax:
+
+	SIG<space><indent-level><marker><text>
+	SIG<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  If a richer display
+  is wished, the front end will need to parse this format in order
+  to get the divisions.  Fortunately this is relatively easy, with
+  the indent values letting us distinguish the components:
+
+  + indent = 0 is used for "header" information like the intrinsic
+    or "Signatures relevant to <type>" messages.
+  + indent = 1 is used for the signature proper.
+  + indent = 2 is used for the description of a signature.
+
+  When running in -x mode, magma always provides a description for
+  each signature, unlike normal mode which may collapse signatures
+  with the same description into a block of multiple signatures to
+  the one description.  This simplifies any such parsing.
+
+  There is one potential "gotcha": If IndentPush() has been called
+  then the indent values may be greater than indicated above.  The
+  more robust solution is to determine the base indent level using
+  the first SIG line, and then check for indent levels of base + 1
+  and base + 2.
+
+  Semantics:
+
+  SIG indicates that the output is a list of signatures.  This may
+  be due to an intrinsic being printed or a call to ListSignatures
+  in one of its forms.  Any header information (like the intrinsic
+  name or "Signatures relevant to <type>") will also use this tag.
+
+
+* INT is a status tag.  It arises when Magma receives an interrupt
+  signal and stops the current computation.
+
+  Syntax:
+
+	INT
+
+  Behaviour:
+
+  The user should be notified that computation was interrupted, if
+  one was running.  If no computation was running then this can be
+  ignored.  The two cases can be distinguished by seeing which tag
+  of RDY or RUN was most recent prior to the interrupt.  If it was
+  RUN then a computation was interrupted; otherwise no computation
+  was interrupted.
+
+  The front end is expected to provide some convenient way for the
+  user to perform this interrupt themselves.  In terminal versions
+  responding to ctrl-C is the most obvious way, but more graphical
+  front ends might provide a button instead and then send a signal
+  to the underlying Magma process.
+
+
+* RES is a status tag, indicating that a complete reset of Magma's
+  state.  This could be due to either use of the "clear" directive
+  or restoring a workspace.  In each case, information gathered by
+  the front end may need to be deleted and re-read.
+
+  Syntax:
+
+	RES
+
+  Behaviour:
+
+  If the front end tracks things like the current list of assigned
+  identifiers or similar, then these must be considered invalid if
+  a RES is received.  Otherwise this can be ignored.
+
+  Note that a RDY following a RES will not indicate changes in any
+  of the fields it tracks even if the resetting action causes such
+  changes.  The RES is considered sufficient notification of this.
+
+
+* ENE is a status tag, indicating that the final part of the input
+  set did not form a valid Magma statement.
+
+  Syntax:
+
+	ENE
+
+  Behaviour:
+
+  A message should be displayed to the user stating that the input
+  set could not be fully parsed.  An attempt could be made to show
+  the specific text involved, but this is not required.  (Starting
+  from the entire input set, any RUN lines can be used to rule out
+  correctly-handled parts.  Then one might wish to skip whitespace
+  and even comments, if feeling industrious, until settling on the
+  probable start of the bad statement.)
+
+
+* DRDY is a status tag, which indicates that the debugger has been
+  invoked.  It can only happen if SetDebugOnError(true) was called
+  earlier and an error has arisen.  The front end may have earlier
+  called SetDebugOnError(true) itself, for that matter, if it aims
+  to provide debug access on demand.
+
+  Syntax:
+
+	DRDY
+
+  Behaviour:
+
+  If the front end presents a continuous view of the session, like
+  a terminal version does, then it should engage with the debugger 
+  at this point.  If it takes a more discontinuous view, such as a
+  Jupyter notebook would, then it should note that the debugger is
+  currently enabled.  If the user opts to use the debugger when it
+  is enabled then the front end should engage with it.  Otherwise,
+  if the user executes more code, then the front end must exit the
+  debugger (by sending it the debugger "q" command).
+
+  "Engaging" with the debugger entails entering a more interactive
+  mode where user input is processed one line at a time and passed
+  onto the debugger, then any response is handled.  In addition to
+  any output that might arise from the command, either a DRDY or a
+  RDY will be returned: DRDY if the debugger is still running, and
+  RDY if the debugger has exited and the regular magma interpreter 
+  is listening.
+
+  Important: Debugger input is handled on a line-by-line basis, so
+  the input must not be followed by an end-of-input marker in this
+  case.  The standard newline suffices.
+
+  If a prompt is printed, then it should be visibly different from
+  the usual magma prompt.  The prompt that Magma uses is "debug> "
+  which is a perfectly serviceable choice.
+
+
+* DTB is an output tag, indicating a traceback in the debugger.
+
+  Syntax:
+
+	DTB<space><indent-level><marker><text>
+	DTB<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  The front end might
+  choose to parse it in order to present a nice view; in that case
+  I suggest looking at a debug traceback to infer the format -- it
+  seems fairly simple, but I have not actually checked.
+
+  Semantics:
+
+  DTB indicates that this output is part of a traceback printed by
+  the Magma debugger.  This will only occur if the user has called
+  the "bt" / "backtrace" debugger command while in the debugger.
+
+
+* DE is an output tag, giving an error message from the debugger.
+
+  Syntax:
+
+	DE<space><indent-level><marker><text>
+	DE<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text should be shown to the user.  Since this is known
+  to be an error message, the front end may display it in whatever
+  it regards as an appropriate manner for errors.
+
+  Semantics:
+
+  The given text is an error message from the debugger.  It can be
+  triggered in two circumstances: The user uses the "fr" / "frame"
+  directive with an invalid frame number, or the user asks to list
+  a non-positive number of lines with the "l" / "list" directive.
+
+
+* RD_PR is an output tag, giving a prompt to show to the user when
+  using the "read" directive.
+
+  Syntax:
+
+	RD_PR<space><indent-level><marker><text>
+	RD_PR<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text (if any) should be shown to the user.  It will be
+  the prompt string provided with a "read" directive.  If there is
+  a separate location provided for input requests (such as a popup
+  window or special input area) then this prompt should be printed
+  there.
+
+  Semantics:
+
+  The given text is a prompt for a "read" directive; there will be
+  a request for a line of input next (using an RD_IN tag).
+
+
+* RD_IN is a status tag, indicating that a line of input is wanted
+  from the user in response to a "read" directive.
+
+  Syntax:
+
+	RD_IN
+
+  Behaviour:
+
+  A line of input must be retrieved from the user and then written
+  to the magma back end.  The front end might choose to open a new
+  window for this input, or activate a special input area for it.
+
+  Important: Precisely one line of input is wanted, and we are not
+  constructing an input set.  So this line must not be followed by
+  an end-of-input marker; the standard newline suffices.
+
+  Note: If an interrupt signal is sent to magma then the read will
+  be interrupted.  Whatever means the front end uses to allow such
+  signals must also abort this read when used.
+
+
+* RDI_PR is an output tag, containing a prompt to show to the user
+  when using the "readi" directive.
+
+  Syntax:
+
+	RDI_PR<space><indent-level><marker><text>
+	RDI_PR<space><continuation-flag><marker><text>
+
+  Meanings are as described for output tags above.
+
+  Behaviour:
+
+  The given text (if any) should be shown to the user.  It will be
+  the prompt string provided with the "readi" directive.  If there
+  is a separate location provided for input requests (like a popup
+  window or special input area) then this prompt should be printed
+  there.
+
+  Semantics:
+
+  The given text is the prompt for a "readi" directive; there will
+  be a request for a line of input next (using an RDI_IN tag).
+
+
+* RDI_IN is a status tag, which indicates that an integer input is
+  wanted from the user in response to a "readi" directive.
+
+  Syntax:
+
+	RDI_IN
+
+  Behaviour:
+
+  A line of input must be retrieved from the user and then written
+  to the magma back end.  The front end might choose to open a new
+  window for this input, or activate a special input area for it.
+
+  Important: Precisely one line of input is wanted, and we are not
+  constructing an input set.  So this line must not be followed by
+  an end-of-input marker; the standard newline suffices.
+
+  Note: If an interrupt signal is sent to magma then the read will
+  be interrupted.  Whatever means the front end uses to allow such
+  signals must also abort this read when used.
+
+
+* RDI_ER is an output tag, indicating that there was an error with
+  the input that the user supplied to a previous "readi".
+
+  Syntax:
+
+	RDI_ER<space><indent-level><marker><text>
+	RDI_ER<space><continuation-flag><marker><text>
+
+  Behaviour:
+
+  The given text should be shown to the user.  Since this is known
+  to be an error message, the front end may display it in whatever
+  it regards as an appropriate manner for errors.
+
+  The error does not terminate the read request, which still needs
+  to be satisfied.  Consequently, after showing the error message,
+  this tag can be treated as though it were RDI_IN.
+
+  Semantics:
+
+  RDI_ER indicates an error in the user's input, as an integer was
+  required but presumably they did not give one.
+
+
+Tags (the messy details)
+------------------------
+
+Here we describe the meaning of the fields provided with data tags
+and how they might be used.
+
+* RDY has five arguments, each of which indicates whether a change
+  has occurred to some user-visible state of the interpreter.  The
+  idea behind this is that the front end might automatically track
+  these changes for the user (if asked to do so), by sending extra
+  queries to Magma behind the scenes.
+
+  The meanings of these five fields (in order) are:
+
+  + Whether the list of assigned identifiers has changed since the
+    last RDY line (or since startup, if there was no such previous
+    line).
+
+    This field is either 0 (meaning no change) or 1 (meaning there
+    was a change).
+
+    The front end might display the currently assigned identifiers
+    to the user in some fashion.  If so, then when this field is 1
+    the front end could make a call to ShowIdentifiers() to update
+    this list.
+
+    Note that a change could either mean that a new identifier has
+    been assigned to, or that a previously assigned identifier has
+    been deleted, or both.  Also note that it is possible there is
+    no net change in the identifier list even if this flag is set;
+    for example, a new identifier might have been created and then
+    deleted within the same input set.
+
+  + Whether the value of some identifier has changed, including if
+    a new identifier has been assigned to, since the last RDY line
+    (or since startup, if there was no such previous line).
+
+    This field is either 0 (meaning no change) or 1 (meaning there
+    was a change).
+
+    The front end might display the values of assigned identifiers
+    to the user in some fashion.  If so, then when this field is 1
+    the front end could print each identifier to get the new value
+    for display.  The user might perhaps specify which identifiers
+    they are interested in monitoring this way, in order to reduce
+    the amount of extra printing done.
+
+  + Whether some verbose value has been changed since the last RDY
+    line (or since startup, if there was no such previous line).
+
+    This field is either 0 (meaning no change) or 1 (meaning there
+    was a change).
+
+    The front end can display the possible verbose flags and their
+    current values, possibly providing a more convenient means for
+    interacting with them.  The verbose flags and their values can 
+    be retrieved by calling DumpVerbose (this also gives the limit
+    for each verbose flag) at startup, and each time that a change
+    is indicated by this field.
+
+    The front end might also enable the user to modify the verbose
+    flags from whatever interface it provides, and call SetVerbose
+    on the user's behalf to do so.
+
+  + Whether some global configuration value has been changed using
+    one of the various Set* intrinsics.
+
+    This field is either 0 (meaning no change) or 1 (meaning there
+    was a change).
+
+    The front end might again provide an alternative interface for
+    these things, perhaps from a carefully chosen subset of values
+    that are deemed useful.  If this field indicates a change then
+    the front end would have to query all values of interest using
+    the corresponding Get* intrinsics to find the changes.
+
+    The list of Set* intrinsics which trigger this behaviour are:
+
+    - SetAssertions
+    - SetAutoColumns
+    - SetAutoCompact
+    - SetBeep
+    - SetColumns
+    - SetDefaultLieType
+    - SetDefaultRealField
+    - SetDefaultRealFieldPrecision
+    - SetEchoInput
+    - SetHistorySize
+    - SetIgnorePrompt
+    - SetIgnoreSpaces
+    - SetIndent
+    - SetLibraries
+    - SetLibraryRoot
+    - SetLineEditor
+    - SetMemoryExtensionSize
+    - SetMemoryLimit
+    - SetPath
+    - SetPreviousSize
+    - SetPrintClassGroupWarnings
+    - SetPrintLevel
+    - SetPrompt
+    - SetQuitOnDoubleInterrupt
+    - SetQuitOnError
+    - SetRows
+    - SetSeed
+    - SetShellCompletion
+    - SetShowPromptAlways
+    - SetTraceback
+    - SetUseMontes
+    - SetVerbose
+    - SetViMode
+
+    Plus some others that don't have corresponding Get* intrinsics
+    or are intended for internal use only.
+
+    As mentioned earlier, changing the number of spaces per indent
+    with SetIndent will cause this field to be set.  However, this
+    is of limited use since printing with the changed indent value
+    may already have occurred.  That said, the front end is likely
+    to have a better way of displaying indentation and should feel
+    free to ignore the specific number of spaces set by the user.
+
+  + The difference in the number of types between now and the last
+    RDY line (or since startup, if there was no such line).
+
+    This field is either 0 or positive.  It cannot be negative.
+
+    If this field is positive then that many types have been added
+    to the system in the interim, presumably due to calling Attach
+    or AttachSpec.  The front end could insert a call to ListTypes
+    in order to get the new list of valid type names.
+
+
+  In addition to the various possibilities suggested for the front
+  end behaviour above, being able to track these values might help
+  the front end do completion or syntax highlighting.
+
+
+* RUN has six arguments.  The first two are the random number seed
+  information prior to executing this statement, as would be given
+  by calling GetSeed.  Both numbers are non-negative; the first is
+  less than 2^32 and the second is less than 2^64.  i.e., they are
+  unsigned 32-bit and 64-bit numbers, respectively.
+
+  The other four arguments specify positions within the input set;
+  the first two identify the start of the statement while the last
+  two identify the end of the statement.  A position consists of a
+  line number and a column number; both are 0-based.  For example,
+  the position 0 0 means the first character in the first line and
+  the position 2 10 would mean the eleventh character in the third
+  line.
+
+  A specific example may help here; the '?' characters are used in
+  place of the tag marker (value 129) for clarity.
+
+	$ magma -xbn
+	?RDY 0 0 0 0 667
+	> 1 + 1 -
+	> 3*2 + 7^2;
+	> u := Random(4);
+	> print "hello";
+	> 
+	IR
+	?RUN 1 0 0 0 1 9
+	?OUT 0?45
+	?RUN 1 0 2 0 2 14
+	?RUN 1 1 3 0 3 13
+	?OUT 0?hello
+	?RDY 1 1 0 0 0
+
+  The first RDY line tells us there are 667 types at start.  After
+  the IR, we start running the first input statement.  This is the
+  statement corresponding to this text:
+
+	> 1 + 1 -
+	> 3*2 + 7^2;
+
+  The first RUN line is
+
+	?RUN 1 0 0 0 1 9
+
+  which tells us the following:
+
+  * The random state prior to running this statement was (1, 0).
+  * The statement starts at (0, 0) in the input set, which is line
+    1 column 1.
+  * The statement ends at (1, 9) in the input set, which is line 2
+    column 10 -- the location of the semicolon.
+
+  (Keep in mind that "> " is a prompt displayed to the user and is
+  not part of the input set.)
+
+  We get the output "45" from this line.  The next statement to be
+  executed is
+
+	> u := Random(4);
+
+  , with corresponding RUN line
+
+	?RUN 1 0 2 0 2 14
+
+  Here we see that the random state is the same as for the earlier
+  statement.  This statement starts at (2, 0), the first character
+  of the third line, then ends at (2, 14), the fifteenth character
+  of the third line.
+
+  There is no output from that line.  The next statement is this:
+
+	> print "hello";
+
+  The associated RUN line is
+
+	?RUN 1 1 3 0 3 13
+
+  We see that the random state has advanced by one step due to the
+  call to Random in the previous statement and is now (1, 1).  The
+  positions of the start and end of the statement are as expected.
+
+  Note the final RDY line:
+
+	?RDY 1 1 0 0 0
+
+  We see that the assignment to "u" in the third line has produced
+  a change in the identifier list as well as a change in the value
+  of an identifier.
+
+
+* ERP has four arguments.  These are two positions relative to the
+  current input set.  As with RUN, each position is made up of two
+  integers, with the first specifying a line number and the second
+  specifying a column position within that line.  Both are 0-based
+  so (for instance) the position 2 7 means the eighth character of
+  the third line.
+
+  The first position is the start of the statement that caused the
+  error, while the second position is where parsing stopped due to
+  having detected the error.
+
+  ERP indicates an error while parsing, which we call "user error"
+  in normal Magma use.
+
+  Example (as usual, ? indicates a marker byte with value 129):
+
+	> 1 + 1; 3*2 - 1/0 - 7;
+	> 
+	?IR
+	?RUN 1 0 0 0 0 5
+	?OUT 0?2
+	?ERP 0 7 0 17
+	?POS 0 15
+	?EU 0?User error: Illegal zero denominator
+	?RDY 0 0 0 0 0
+
+  The four integers in the ERP entry produce the positions 0 7 and
+  0 17.  These correspond to the '3' and the '-' between '1/0' and
+  '7'.  So we see where the bad statement started and how far into
+  it the parser had got before finding an error.
+
+  Note that we then also have a POS line giving the exact location
+  of the error, and an EU line giving the error text.
+
+
+* POS has two arguments, which specify a position within the input
+  set.  As usual, the first argument specifies a line number while
+  the second specifies a column number.  Both are 0-based, so (for
+  example) the position 5 2 means the third character of the sixth
+  line.
+
+  The position gives the location of the parse error, which is the
+  first character of the token that caused the parsing to fail.
+
+  In the example for ERP above, the specified position corresponds
+  to the '0' in '1/0'.  At this point the parser tried to make the
+  literal rational number 1/0, which failed, of course.  Note that
+  the second position in the ERP entry is after that point.  While
+  the 0 was the underlying cause of the problem, the parser had to
+  look a little further ahead to determine that.
+
