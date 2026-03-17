@@ -185,6 +185,23 @@ def test_lowercase_identifier(lexer):
     assert any(t is Name and v == "my_var" for t, v in toks)
 
 
+# --- Type annotations ---
+
+
+def test_type_annotation(lexer):
+    """Type in :: context should be Name.Class."""
+    toks = _types(lexer, "function Foo(x :: RngIntElt) return x; end function;")
+    class_toks = [(t, v) for t, v in toks if t is Name.Class]
+    assert any(v == "RngIntElt" for t, v in class_toks)
+
+
+def test_function_definition_name(lexer):
+    """Function name in definition should be Name.Function."""
+    toks = _types(lexer, "function MyFunc(x) return x; end function;")
+    func_toks = [(t, v) for t, v in toks if t is Name.Function]
+    assert any(v == "MyFunc" for t, v in func_toks)
+
+
 # --- Integration ---
 
 
@@ -196,6 +213,24 @@ def test_full_statement(lexer):
     assert Operator in types
     assert any(t in Number for t in types)
     assert any(t in Comment for t in types)
+
+
+def test_augmented_assignment(lexer):
+    """Augmented assignment operators like +:= should tokenize."""
+    toks = _types(lexer, "x +:= 1;")
+    assert toks  # should not crash
+
+
+def test_dollar_and_double_dollar(lexer):
+    """$ and $$ tokens."""
+    toks = _types(lexer, "x := $;")
+    assert toks
+
+
+def test_backtick_attribute(lexer):
+    """Backtick attribute access."""
+    toks = _types(lexer, "x`attr;")
+    assert toks
 
 
 # --- Entry point ---

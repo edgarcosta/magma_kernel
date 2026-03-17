@@ -476,6 +476,45 @@ class TestDoIsComplete:
 
 
 # ===================================================================
+# _format_error_position
+# ===================================================================
+
+
+class TestFormatErrorPosition:
+    """Tests for _format_error_position helper in kernel.py."""
+
+    def test_single_line(self):
+        from magma_kernel.kernel import _format_error_position
+        result = _format_error_position("x := ;", (0, 0, 0, 5))
+        assert "x := ;" in result
+        assert "^" in result
+        # The caret should be at column 5
+        lines = result.splitlines()
+        caret_line = [l for l in lines if "^" in l][0]
+        assert caret_line.index("^") == 7  # 2 spaces indent + 5
+
+    def test_multiline(self):
+        from magma_kernel.kernel import _format_error_position
+        code = "x := 1;\ny := ;"
+        result = _format_error_position(code, (0, 0, 1, 5))
+        assert "y := ;" in result
+        assert "^" in result
+
+    def test_out_of_range(self):
+        from magma_kernel.kernel import _format_error_position
+        assert _format_error_position("x := 1;", (0, 0, 5, 0)) == ""
+
+    def test_negative_line(self):
+        from magma_kernel.kernel import _format_error_position
+        assert _format_error_position("x := 1;", (0, 0, -1, 0)) == ""
+
+    def test_column_zero(self):
+        from magma_kernel.kernel import _format_error_position
+        result = _format_error_position("bad;", (0, 0, 0, 0))
+        assert "^" in result
+
+
+# ===================================================================
 # _extract_token
 # ===================================================================
 
@@ -1133,3 +1172,109 @@ class TestMagmaProcess:
             assert "20" in "".join(out)
         finally:
             proc.stop(force=True)
+
+    # --- read/readi ---
+
+    def test_read_directive(self):
+        """read directive triggers on_input_request callback via RD_PR+RD_IN."""
+        from magma_kernel.protocol import MagmaCallbacks, MagmaState
+        proc = self._make()
+        try:
+            prompts = []
+            def on_input(prompt):
+                prompts.append(prompt)
+                return "hello"
+
+            proc.send_input('read x, "Name: "; x;')
+            out = []
+            result = proc.process_until_ready(MagmaCallbacks(
+                on_stdout=lambda s: out.append(s),
+                on_input_request=on_input,
+            ))
+            assert result.state == MagmaState.READY
+            assert prompts  # should have received a prompt
+            assert "hello" in "".join(out)
+        finally:
+            proc.stop(force=True)
+
+    def test_readi_directive(self):
+        """readi directive triggers on_input_request for integer input."""
+        from magma_kernel.protocol import MagmaCallbacks, MagmaState
+        proc = self._make()
+        try:
+            def on_input(prompt):
+                return "42"
+
+            proc.send_input('readi n, "Number: "; n;')
+            out = []
+            result = proc.process_until_ready(MagmaCallbacks(
+                on_stdout=lambda s: out.append(s),
+                on_input_request=on_input,
+            ))
+            assert result.state == MagmaState.READY
+            assert "42" in "".join(out)
+        finally:
+            proc.stop(force=True)
+
+    # --- Graceful quit ---
+
+    def test_quit_via_input(self):
+        """Sending 'quit;' causes Magma to emit QUIT, detected as DEAD."""
+        from magma_kernel.protocol import MagmaCallbacks, MagmaState
+        proc = self._make()
+        try:
+            proc.send_input("quit;")
+            result = proc.process_until_ready(MagmaCallbacks())
+            assert result.state == MagmaState.DEAD
+        finally:
+            proc.stop(force=True)
+
+    # --- drain_stale_responses ---
+
+    def test_drain_stale_responses(self):
+        """drain_stale_responses consumes stale INT+RDY after interrupt."""
+        from magma_kernel.protocol import MagmaCallbacks, MagmaState
+        proc = self._make()
+        try:
+            proc.send_input("while true do x := 1; end while;")
+
+            def do_interrupt():
+                time.sleep(0.3)
+                proc.interrupt()
+
+            t = threading.Thread(target=do_interrupt)
+            t.start()
+            result = proc.process_until_ready(MagmaCallbacks())
+            t.join()
+            assert result.interrupted
+
+            proc.drain_stale_responses()
+
+            # Should be fully synced now
+            out = []
+            proc.send_input("99+1;")
+            r = proc.process_until_ready(MagmaCallbacks(
+                on_stdout=lambda s: out.append(s),
+            ))
+            assert "100" in "".join(out)
+        finally:
+            proc.stop(force=True)
+
+    # --- interrupt on dead process ---
+
+    def test_interrupt_dead_process(self):
+        """Interrupting a dead process should not raise."""
+        from magma_kernel.protocol import MagmaProcess
+        proc = MagmaProcess()
+        proc.start()
+        proc.stop(force=True)
+        proc.interrupt()  # should not raise
+
+    # --- start failure with immediate exit ---
+
+    def test_start_immediate_exit(self):
+        """A magma_path that exits immediately should raise RuntimeError."""
+        from magma_kernel.protocol import MagmaProcess
+        proc = MagmaProcess(magma_path="/bin/true")
+        with pytest.raises(RuntimeError, match="died during startup"):
+            proc.start()
