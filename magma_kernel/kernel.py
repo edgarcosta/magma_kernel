@@ -68,6 +68,11 @@ class MagmaKernel(Kernel):
         "file_extension": ".m",
     }
 
+    help_links = [
+        {"text": "Magma Handbook", "url": "http://magma.maths.usyd.edu.au/magma/handbook/"},
+        {"text": "Magma Tutorial", "url": "http://magma.maths.usyd.edu.au/magma/pdf/first.pdf"},
+    ]
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._start_magma()
