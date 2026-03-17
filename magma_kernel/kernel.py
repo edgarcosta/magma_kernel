@@ -28,7 +28,9 @@ _BLOCK_CLOSERS = {
     "repeat": "until",
 }
 
-# Regex to strip strings and comments for keyword balancing
+# Regex to strip strings and comments for keyword balancing.
+# Block comments (/* ... */) are handled separately by _strip_block_comments
+# because Magma supports nesting and regex cannot handle that.
 _STRING_OR_COMMENT_RE = re.compile(r'"[^"]*"|//[^\n]*')
 
 # Regex to find keywords (whole words only)
@@ -52,6 +54,26 @@ _HANDBOOK_BASE = (
     "http://magma.maths.usyd.edu.au/magma/handbook/search?"
     "chapters=1&examples=1&intrinsics=1&query="
 )
+
+
+def _strip_block_comments(code):
+    """Remove /* ... */ block comments, handling Magma's nesting."""
+    result = []
+    depth = 0
+    i = 0
+    while i < len(code):
+        if code[i:i+2] == "/*":
+            depth += 1
+            i += 2
+        elif code[i:i+2] == "*/" and depth > 0:
+            depth -= 1
+            i += 2
+        elif depth == 0:
+            result.append(code[i])
+            i += 1
+        else:
+            i += 1
+    return "".join(result)
 
 
 def _extract_token(code, cursor_pos):
@@ -170,7 +192,7 @@ class MagmaKernel(Kernel):
             return {"status": "incomplete", "indent": "    "}
 
         # Strip strings and comments, then count block keywords
-        stripped = _STRING_OR_COMMENT_RE.sub("", code)
+        stripped = _strip_block_comments(_STRING_OR_COMMENT_RE.sub("", code))
         depth = 0
         for m in _KEYWORD_RE.finditer(stripped):
             kw = re.sub(r"\s+", " ", m.group(1)).lower()
