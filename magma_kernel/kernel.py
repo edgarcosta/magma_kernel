@@ -295,8 +295,12 @@ class MagmaKernel(Kernel):
             code += ";"
 
         original_code = code
-        timed_code = f"__t := Cputime(); {code} Cputime(__t);"
-        return self._execute_code(timed_code, silent, allow_stdin, original_code=original_code)
+        prefix = "__t := Cputime(); "
+        timed_code = f"{prefix}{code} Cputime(__t);"
+        return self._execute_code(
+            timed_code, silent, allow_stdin,
+            original_code=original_code, _erp_col_offset=len(prefix),
+        )
 
     def _magic_load(self, args, silent, allow_stdin):
         """Load a .m file into the cell."""
@@ -357,11 +361,14 @@ class MagmaKernel(Kernel):
             )
         return self._ok_reply()
 
-    def _execute_code(self, code, silent, allow_stdin, original_code=None):
+    def _execute_code(self, code, silent, allow_stdin, original_code=None,
+                       _erp_col_offset=0):
         """Execute Magma code and return a Jupyter reply dict.
 
-        *original_code* is the user's raw input before semicolon
-        appending, used for error position annotation.
+        *original_code* is the user's raw input used for error position
+        annotation.  *_erp_col_offset* adjusts ERP column positions on
+        the first line (e.g. when code is wrapped with a prefix for
+        ``%time``).
         """
         if not self.process.alive:
             self.send_response(
@@ -464,7 +471,15 @@ class MagmaKernel(Kernel):
             # Annotate with error position caret if available
             src = original_code if original_code is not None else code
             if result.erp is not None:
-                pos_text = _format_error_position(src, result.erp)
+                erp = result.erp
+                if _erp_col_offset and len(erp) >= 4:
+                    sl, sc, el, ec = erp[:4]
+                    if sl == 0:
+                        sc = max(0, sc - _erp_col_offset)
+                    if el == 0:
+                        ec = max(0, ec - _erp_col_offset)
+                    erp = (sl, sc, el, ec) + erp[4:]
+                pos_text = _format_error_position(src, erp)
                 if pos_text:
                     tb_lines.append(pos_text)
             return {

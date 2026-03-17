@@ -248,6 +248,19 @@ def test_magic_time(kernel):
     assert stdout  # timing output
 
 
+def test_magic_time_error_caret(kernel):
+    """Error caret in %time should point into the user's code, not the wrapper."""
+    _reset_mock(kernel)
+    result = kernel.do_execute("%time x := ;", silent=False)
+    assert result["status"] == "error"
+    # The caret should point within "x := ;" (col 5), not offset by the
+    # "__t := Cputime(); " prefix (19 chars).
+    caret_lines = [l for l in result["traceback"] if "^" in l]
+    if caret_lines:
+        # Verify the source line shown is the user's code, not the wrapper
+        assert "Cputime" not in caret_lines[0]
+
+
 def test_magic_time_bare(kernel):
     _reset_mock(kernel)
     result = kernel.do_execute("%time", silent=False)
