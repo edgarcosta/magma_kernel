@@ -9,6 +9,7 @@ import logging
 import os
 import signal
 import subprocess
+import threading
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Callable, Optional
@@ -279,6 +280,7 @@ class MagmaProcess:
         self._proc: Optional[subprocess.Popen] = None
         self._buf = b""
         self._state = MagmaState.STARTING
+        self._stderr_thread: Optional[threading.Thread] = None
 
     @property
     def alive(self) -> bool:
@@ -300,6 +302,15 @@ class MagmaProcess:
 
         self._buf = b""
         self._state = MagmaState.STARTING
+
+        # Drain stderr in background to prevent pipe buffer deadlock.
+        # Magma's -x mode sends structured output to stdout (tagged),
+        # but may write to stderr for catastrophic errors.  If the 64KB
+        # pipe buffer fills, Magma blocks and we deadlock.
+        self._stderr_thread = threading.Thread(
+            target=self._drain_stderr, daemon=True,
+        )
+        self._stderr_thread.start()
 
         # Read startup output until first RDY
         banner_acc = OutputAccumulator()
@@ -499,6 +510,35 @@ class MagmaProcess:
 
             if tag == Tag.POS:
                 continue
+
+    def _drain_stderr(self) -> None:
+        """Background thread: read and log Magma's stderr until EOF."""
+        assert self._proc is not None
+        try:
+            for line in self._proc.stderr:
+                text = line.decode("utf-8", errors="replace").rstrip()
+                if text:
+                    self._log.warning("Magma stderr: %s", text)
+        except (OSError, ValueError):
+            pass  # pipe closed
+
+    def drain_stale_responses(self, log: Optional[logging.Logger] = None) -> None:
+        """Drain stale INT+RDY sequences left by interrupts delivered while
+        Magma was idle.
+
+        After an interrupt, Magma may emit INT+RDY even if it was already
+        in the READY state.  These stale responses cause the next
+        ``process_until_ready`` to return immediately with no output.
+        This method sends a no-op input and repeats until the response
+        is non-interrupted, consuming all stale sequences.
+        """
+        logger = log or self._log
+        for _ in range(10):
+            self.send_input("_ := 0;")
+            r = self.process_until_ready(MagmaCallbacks())
+            if not r.interrupted:
+                return
+            logger.debug("Drained stale interrupt response")
 
     def stop(self, force: bool = False) -> None:
         """Stop the Magma process."""

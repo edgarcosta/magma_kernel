@@ -416,6 +416,10 @@ class MagmaKernel(Kernel):
             if erp is not None:
                 result.erp = erp
 
+        # Drain stale RDY from interrupt delivered while Magma was idle
+        if result.interrupted:
+            self.process.drain_stale_responses(self.log)
+
         if result.state == MagmaState.DEAD:
             on_stderr("Magma process died unexpectedly. Will restart on next execution.\n")
 
