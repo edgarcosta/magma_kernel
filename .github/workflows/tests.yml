@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, x-protocol]
+  pull_request:
+    branches: [master]
+
+jobs:
+  unit-tests:
+    name: Unit tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package with test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run unit tests (no Magma required)
+        run: pytest tests/test_protocol.py -v -k 'not TestMagmaProcess'
+
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package with test dependencies
+        run: pip install -e ".[test]"
+
+      # Tests that require Magma auto-skip via @pytest.mark.skipif
+      # when `magma` is not on PATH. Once Magma is available on the
+      # runner, they will run automatically — no workflow changes needed.
+      - name: Run all tests
+        run: pytest tests/ -v

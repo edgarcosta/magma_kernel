@@ -1,0 +1,43 @@
+name: Coverage
+
+on:
+  push:
+    branches: [master, x-protocol]
+  pull_request:
+    branches: [master]
+
+jobs:
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package with test dependencies
+        run: pip install -e ".[test]"
+
+      # Run unit tests (always available) for coverage baseline.
+      # Integration tests auto-skip when Magma is absent but will
+      # contribute to coverage when it becomes available.
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=magma_kernel \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            -v
+
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

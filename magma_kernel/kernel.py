@@ -1,26 +1,45 @@
-from ipykernel.kernelbase import Kernel
-from pexpect import EOF, TIMEOUT, spawn
-from tempfile import NamedTemporaryFile
-
-from os import fsync
-from urllib.parse import quote
 import html
 import re
-import signal
 import traceback
+from urllib.parse import quote
+
+from ipykernel.kernelbase import Kernel
 
 from . import __version__
+from .protocol import (
+    ExecutionResult,
+    MagmaCallbacks,
+    MagmaProcess,
+    MagmaState,
+)
 
-_ERROR_RE = re.compile(
-    r"^((?:Runtime|User|Internal) error[^:\n]*):\s*(.*)",
-    re.MULTILINE,
+# Block openers and their closers for do_is_complete
+_BLOCK_OPENERS = {"for", "if", "while", "function", "procedure", "try", "case", "repeat"}
+_BLOCK_CLOSERS = {
+    "for": "end for",
+    "if": "end if",
+    "while": "end while",
+    "function": "end function",
+    "procedure": "end procedure",
+    "try": "end try",
+    "case": "end case",
+    "repeat": "until",
+}
+
+# Regex to strip strings and comments for keyword balancing
+_STRING_OR_COMMENT_RE = re.compile(r'"[^"]*"|//[^\n]*')
+
+# Regex to find keywords (whole words only)
+_KEYWORD_RE = re.compile(
+    r"\b(end\s+for|end\s+if|end\s+while|end\s+function|end\s+procedure|"
+    r"end\s+try|end\s+case|until|for|if|while|function|procedure|try|case|repeat)\b",
+    re.IGNORECASE,
 )
 
 
 class MagmaKernel(Kernel):
     implementation = "magma_kernel"
     implementation_version = __version__
-    _prompt = "$PEXPECT_PROMPT$"
 
     language_info = {
         "name": "magma",
@@ -31,52 +50,27 @@ class MagmaKernel(Kernel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # sets child, banner, language_info, language_version
-
         self._start_magma()
 
     def _start_magma(self):
-        # Signal handlers are inherited by forked processes, and we can't easily
-        # reset it from the subprocess. Since kernelapp ignores SIGINT except in
-        # message handlers, we need to temporarily reset the SIGINT handler here
-        # so that magma and its children are interruptible.
-        sig = signal.signal(signal.SIGINT, signal.SIG_DFL)
-        try:
-            magma = spawn(
-                "magma -b",
-                echo=False,
-                encoding="utf-8",
-                timeout=30,
-                maxread=4194304,
-                ignore_sighup=True,
-                codec_errors="ignore",
-            )
-            magma.expect_exact("> ", timeout=30)
-            magma.sendline("SetColumns(0);")
-            magma.expect_exact("> ", timeout=30)
-            magma.sendline("SetAutoColumns(false);")
-            magma.expect_exact("> ", timeout=30)
-            magma.sendline("SetLineEditor(false);")
-            magma.expect_exact("> ", timeout=30)
-            magma.sendline(f'SetPrompt("{self._prompt}");')
-            magma.expect_exact(self._prompt, timeout=30)
-            magma.sendline('Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();')
-            magma.expect_exact(self._prompt, timeout=30)
-            self.child = magma
-        except (TIMEOUT, EOF) as exc:
-            raise RuntimeError(
-                "Failed to start Magma. Ensure 'magma' is on your PATH and functioning."
-            ) from exc
-        finally:
-            signal.signal(signal.SIGINT, sig)
+        self.process = MagmaProcess(logger=self.log)
+        banner_text = self.process.start()
 
-        lang_version = self.child.before.strip('\n')
+        # Query version
+        output_parts = []
+        cb = MagmaCallbacks(on_stdout=lambda s: output_parts.append(s))
+        self.process.send_input(
+            'Sprintf("%o.%o-%o", a, b, c) where a, b, c := GetVersion();'
+        )
+        self.process.process_until_ready(cb)
+        lang_version = "".join(output_parts).strip()
+
         self.banner = "Magma kernel connected to Magma " + lang_version
-        self.language_info["version"] = lang_version
+        self.language_info = dict(self.language_info, version=lang_version)
         self.language_version = lang_version
 
     def do_shutdown(self, restart):
-        self.child.close(force=True)
+        self.process.stop(force=True)
         if restart:
             self._start_magma()
         return {"status": "ok", "restart": restart}
@@ -85,16 +79,35 @@ class MagmaKernel(Kernel):
         code = code.strip()
         if not code:
             return {"status": "incomplete", "indent": ""}
-        if code.endswith(";"):
-            return {"status": "complete"}
-        return {"status": "incomplete", "indent": "    "}
 
-    def do_help(self, keyword):
+        if not code.endswith(";"):
+            # No trailing semicolon — could be mid-block or incomplete
+            return {"status": "incomplete", "indent": "    "}
+
+        # Strip strings and comments, then count block keywords
+        stripped = _STRING_OR_COMMENT_RE.sub("", code)
+        depth = 0
+        for m in _KEYWORD_RE.finditer(stripped):
+            kw = re.sub(r"\s+", " ", m.group(1)).lower()
+            if kw in _BLOCK_OPENERS:
+                depth += 1
+            elif kw in _BLOCK_CLOSERS.values():
+                depth -= 1
+
+        if depth == 0:
+            return {"status": "complete"}
+        elif depth > 0:
+            return {"status": "incomplete", "indent": "    "}
+        else:
+            # More closers than openers — odd, let Magma decide
+            return {"status": "unknown"}
+
+    def _do_help(self, keyword):
         url_keyword = quote(keyword)
         safe_keyword = html.escape(keyword)
         URL = (
-            "http://magma.maths.usyd.edu.au/magma/handbook/search?chapters=1&examples=1&intrinsics=1&query="
-            + url_keyword
+            "http://magma.maths.usyd.edu.au/magma/handbook/search?"
+            "chapters=1&examples=1&intrinsics=1&query=" + url_keyword
         )
         content = {
             "data": {
@@ -120,8 +133,8 @@ class MagmaKernel(Kernel):
                 "user_expressions": {},
             }
 
-        if code[0] == "?":
-            self.do_help(code[1:])
+        if code.lstrip().startswith("?"):
+            self._do_help(code.lstrip()[1:])
             return {
                 "status": "ok",
                 "execution_count": self.execution_count,
@@ -129,114 +142,76 @@ class MagmaKernel(Kernel):
                 "user_expressions": {},
             }
 
-        # add a semicolon if doesn't end with a semicolon
+        # Auto-restart if dead
+        if not self.process.alive:
+            self.send_response(
+                self.iopub_socket, "stream",
+                {"name": "stderr", "text": "Magma process died. Restarting...\n"},
+            )
+            self._start_magma()
+
+        # Auto-append semicolon
         if not code.endswith(";"):
             code += ";"
 
-        interrupted = False
-        read_characters = [0]
-        collected_output = []
-
-        def wait_for_output(read_characters, filename=None):
-            read_characters[0] = 0
-            # this function will *modify* the read_characters[0]
-            # If one send the code block via a temporary file one needs to
-            # to remove temporary filename references from the output.
-            # output output initially on intervals of 0.5 seconds
-            # If no output is received, the interval slowly increases to 30 seconds over 5 min
-            initial_counter = counter = 10
-            initial_timeout = timeout = 0.1
-            if filename:
-                infile_line = f'In file "{filename}", '
-
-            while True:
-                v = self.child.expect_exact([self._prompt, TIMEOUT], timeout=timeout)
-
-                # something in output
-                if not silent and len(self.child.before) > read_characters[0]:
-                    output = self.child.before[read_characters[0]:]
-                    if read_characters[0] == 0 and filename:
-                        # Remove the "Loading filename" line
-                        if output.startswith(f'Loading "{filename}"'):
-                            output = output.partition("\n")[-1]  # consume first line
-                        else:
-                            self.log.warning(
-                                "First line doesn't match expected outcome: %r",
-                                output,
-                            )
-                    if filename:
-                        # in case of error remove temporary filename from output
-                        output = output.replace(infile_line, "In ", 1)
-
-                    if output:
-                        collected_output.append(output)
-                        self.send_response(
-                            self.iopub_socket,
-                            "stream",
-                            {
-                                "name": "stdout",
-                                "text": output,
-                            },
-                        )
-                    read_characters[0] = len(self.child.before)
-                    counter = initial_counter
-                    timeout = initial_timeout
-                counter -= 1
-                # increase timeout after default_counter attempts of processing line
-                if counter <= 0:
-                    # timeout = min(30, 2 * timeout)
-                    counter = initial_counter
-                if v == 0:
-                    # finished waiting for output
-                    return
-
-        append_to_output = ""
-
-        try:
-            # We use a temporary file to send each cell
-            # this takes about as the same time as sending a single line, but has several benefits:
-            # - handles long cells, I wasn't able to send a line longer than 2^16 character.
-            # - catches lack of end statements
-            # we check the length of the whole code block
-
-
-            # send the line via a temporary file
-            with NamedTemporaryFile("w+t") as tmpfile:
-                tmpfile.write(code + "\n")
-                tmpfile.flush()
-                fsync(tmpfile.fileno())
-                self.child.sendline(f'load "{tmpfile.name}";')
-                wait_for_output(read_characters, tmpfile.name)
-
-        except KeyboardInterrupt:
-            self.child.sendintr()
-            interrupted = True
-            wait_for_output(read_characters)
-            append_to_output = "Interrupted"
-        except EOF:
-            append_to_output = "Restarting Magma"
-            self._start_magma()
-
-        if not silent:
-            text = self.child.before[read_characters[0]:] + append_to_output
-            if text:
-                collected_output.append(text)
+        def on_stdout(text):
+            if not silent:
                 self.send_response(
-                    self.iopub_socket,
-                    "stream",
+                    self.iopub_socket, "stream",
                     {"name": "stdout", "text": text},
                 )
 
-        if interrupted:
+        def on_stderr(text):
+            if not silent:
+                self.send_response(
+                    self.iopub_socket, "stream",
+                    {"name": "stderr", "text": text},
+                )
+
+        def on_input_request(prompt):
+            if allow_stdin:
+                return self.raw_input(prompt)
+            else:
+                on_stderr(
+                    "read/readi directive requires interactive input, "
+                    "but this session does not support stdin\n"
+                )
+                self.process.interrupt()
+                return ""
+
+        callbacks = MagmaCallbacks(
+            on_stdout=on_stdout,
+            on_stderr=on_stderr,
+            on_input_request=on_input_request,
+        )
+
+        try:
+            self.process.send_input(code)
+            result = self.process.process_until_ready(callbacks)
+        except KeyboardInterrupt:
+            self.process.interrupt()
+            # Continue reading until RDY
+            result = self.process.process_until_ready(callbacks)
+
+        # Auto-exit debugger, preserving the error state from the execution
+        if result.state == MagmaState.DEBUGGER:
+            had_error = result.had_error
+            self.process.send_line("q")
+            result = self.process.process_until_ready(callbacks)
+            result.had_error = result.had_error or had_error
+
+        if result.state == MagmaState.DEAD:
+            on_stderr("Magma process died unexpectedly. Will restart on next execution.\n")
+
+        if result.interrupted:
             return {"status": "abort", "execution_count": self.execution_count}
 
-        error_match = _ERROR_RE.search("".join(collected_output))
-        if error_match:
+        if result.had_error:
             return {
                 "status": "error",
                 "execution_count": self.execution_count,
-                "ename": error_match.group(1),
-                "evalue": error_match.group(2),
+                "ename": "MagmaError",
+                "evalue": "",
                 "traceback": [],
             }
 
@@ -252,31 +227,37 @@ class MagmaKernel(Kernel):
             "matches": [],
             "cursor_start": 0,
             "cursor_end": cursor_pos,
-            "metadata": dict(),
+            "metadata": {},
             "status": "ok",
         }
-        # optimizing to not send everything
         token = code[:cursor_pos]
-        for sep in ["\n", ";", " ", "("]:  # we just need the last chunk
+        for sep in ["\n", ";", " ", "("]:
             token = token.rpartition(sep)[-1]
         if not token:
             return default
         token_escaped = token.replace("\\", "\\\\").replace('"', '\\"')
-        self.child.sendline(f'Completion("{token_escaped}", {len(token)});')
-        self.child.expect_exact(self._prompt)
-        if self.child.before == "DIE\n":
+
+        if not self.process.alive:
+            return default
+
+        output_parts = []
+        cb = MagmaCallbacks(on_stdout=lambda s: output_parts.append(s))
+        self.process.send_input(f'Completion("{token_escaped}", {len(token)});')
+        self.process.process_until_ready(cb)
+
+        raw_output = "".join(output_parts)
+        if raw_output.strip() == "DIE":
             self.log.error(
-                f'Failed to complete, magma did not like our call:  Completion("{token_escaped}", {len(token)});'
+                'Failed to complete, magma did not like our call: '
+                'Completion("%s", %d);', token_escaped, len(token),
             )
             return default
-        matches = self.child.before.splitlines()
+
+        matches = raw_output.splitlines()
         try:
-            # how many matches
             matches_len = int(matches[0])
             if matches_len == 0:
                 return default
-            # The range of text that should be replaced by the above matches when a completion is accepted.
-            # typically cursor_end is the same as cursor_pos in the request.
             cursor_start = cursor_pos - len(token) + int(matches[1])
             cursor_end = cursor_pos - len(token) + int(matches[1]) + int(matches[2])
             matches = matches[3:]
@@ -287,13 +268,13 @@ class MagmaKernel(Kernel):
                 )
                 return default
         except Exception:
-            self.log.error("Failed to complete: \n" + traceback.format_exc())
+            self.log.error("Failed to complete:\n%s", traceback.format_exc())
             return default
 
         return {
             "matches": matches,
             "cursor_start": cursor_start,
             "cursor_end": cursor_end,
-            "metadata": dict(),
+            "metadata": {},
             "status": "ok",
         }

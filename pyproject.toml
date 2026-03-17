@@ -24,13 +24,12 @@ classifiers=[
   "Framework :: Jupyter",
 ]
 dependencies = [
-    "pexpect",
     "ipykernel",
     "jupyter_client",
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "pytest-cov"]
 
 [project.urls]
 Homepage = "https://github.com/edgarcosta/magma_kernel"
