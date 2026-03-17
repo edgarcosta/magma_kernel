@@ -27,7 +27,30 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Run unit tests (no Magma required)
-        run: pytest tests/test_protocol.py -v -k 'not TestMagmaProcess'
+        run: pytest tests/test_protocol.py tests/test_lexer.py -v -k 'not TestMagmaProcess'
+
+  lexer-regex-fallback:
+    name: Lexer tests (regex fallback, no tree-sitter)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install without tree-sitter
+        run: |
+          pip install pygments ipykernel jupyter_client pytest pytest-cov
+          pip install -e . --no-deps
+
+      - name: Verify regex fallback is active
+        run: python -c "from magma_kernel.lexer import _HAS_TREE_SITTER; assert not _HAS_TREE_SITTER"
+
+      - name: Run lexer tests with regex backend
+        run: pytest tests/test_lexer.py -v
 
   integration-tests:
     name: Integration tests

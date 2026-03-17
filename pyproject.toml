@@ -27,6 +27,8 @@ dependencies = [
     "ipykernel",
     "jupyter_client",
     "pygments",
+    "tree-sitter",
+    "tree-sitter-magma @ git+https://github.com/edgarcosta/tree-sitter-magma.git",
 ]
 
 [project.optional-dependencies]
