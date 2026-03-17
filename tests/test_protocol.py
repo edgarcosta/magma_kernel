@@ -476,6 +476,47 @@ class TestDoIsComplete:
 
 
 # ===================================================================
+# _extract_token
+# ===================================================================
+
+
+class TestExtractToken:
+    """Tests for _extract_token helper in kernel.py."""
+
+    def test_simple(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("IsPrime", 7) == "IsPrime"
+
+    def test_after_space(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("x := IsPr", 9) == "IsPr"
+
+    def test_after_semicolon(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("x := 1; Fac", 11) == "Fac"
+
+    def test_after_paren(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("foo(Bar", 7) == "Bar"
+
+    def test_after_comma(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("foo(x, Bar", 10) == "Bar"
+
+    def test_after_newline(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("x := 1;\nFoo", 11) == "Foo"
+
+    def test_empty(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("", 0) == ""
+
+    def test_cursor_mid_token(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("IsPrime", 3) == "IsP"
+
+
+# ===================================================================
 # _apply_tb_indent_heuristic
 # ===================================================================
 

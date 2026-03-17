@@ -37,6 +37,20 @@ _KEYWORD_RE = re.compile(
 )
 
 
+_HANDBOOK_BASE = (
+    "http://magma.maths.usyd.edu.au/magma/handbook/search?"
+    "chapters=1&examples=1&intrinsics=1&query="
+)
+
+
+def _extract_token(code, cursor_pos):
+    """Extract the token at cursor_pos for completion/inspection."""
+    token = code[:cursor_pos]
+    for sep in ["\n", ";", " ", "(", ",", ":"]:
+        token = token.rpartition(sep)[-1]
+    return token
+
+
 class MagmaKernel(Kernel):
     implementation = "magma_kernel"
     implementation_version = __version__
@@ -68,6 +82,16 @@ class MagmaKernel(Kernel):
         self.banner = "Magma kernel connected to Magma " + lang_version
         self.language_info = dict(self.language_info, version=lang_version)
         self.language_version = lang_version
+
+    def _magma_eval(self, code):
+        """Send code to Magma and return (stdout, stderr) strings."""
+        out, err = [], []
+        self.process.send_input(code)
+        self.process.process_until_ready(MagmaCallbacks(
+            on_stdout=lambda s: out.append(s),
+            on_stderr=lambda s: err.append(s),
+        ))
+        return "".join(out), "".join(err)
 
     def do_shutdown(self, restart):
         self.process.stop(force=True)
@@ -105,10 +129,7 @@ class MagmaKernel(Kernel):
     def _do_help(self, keyword):
         url_keyword = quote(keyword)
         safe_keyword = html.escape(keyword)
-        URL = (
-            "http://magma.maths.usyd.edu.au/magma/handbook/search?"
-            "chapters=1&examples=1&intrinsics=1&query=" + url_keyword
-        )
+        URL = _HANDBOOK_BASE + url_keyword
         content = {
             "data": {
                 "text/html": '<a href="{}" target="magma_help">Magma help on {}</a>'.format(
@@ -120,39 +141,14 @@ class MagmaKernel(Kernel):
         }
         self.send_response(self.iopub_socket, "display_data", content)
 
-    def do_execute(
-        self, code, silent, store_history=True, user_expressions=None, allow_stdin=False
-    ):
-        code = code.rstrip()
-
-        if not code.lstrip():
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
-
-        if code.lstrip().startswith("?"):
-            self._do_help(code.lstrip()[1:])
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
-
-        # Auto-restart if dead
+    def _execute_code(self, code, silent, allow_stdin):
+        """Execute Magma code and return a Jupyter reply dict."""
         if not self.process.alive:
             self.send_response(
                 self.iopub_socket, "stream",
                 {"name": "stderr", "text": "Magma process died. Restarting...\n"},
             )
             self._start_magma()
-
-        # Auto-append semicolon
-        if not code.endswith(";"):
-            code += ";"
 
         def on_stdout(text):
             if not silent:
@@ -190,10 +186,9 @@ class MagmaKernel(Kernel):
             result = self.process.process_until_ready(callbacks)
         except KeyboardInterrupt:
             self.process.interrupt()
-            # Continue reading until RDY
             result = self.process.process_until_ready(callbacks)
 
-        # Auto-exit debugger, preserving the error state from the execution
+        # Auto-exit debugger, preserving the error state
         if result.state == MagmaState.DEBUGGER:
             had_error = result.had_error
             self.process.send_line("q")
@@ -222,6 +217,33 @@ class MagmaKernel(Kernel):
             "user_expressions": {},
         }
 
+    def do_execute(
+        self, code, silent, store_history=True, user_expressions=None, allow_stdin=False
+    ):
+        code = code.rstrip()
+
+        if not code.lstrip():
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        if code.lstrip().startswith("?"):
+            self._do_help(code.lstrip()[1:])
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        if not code.endswith(";"):
+            code += ";"
+
+        return self._execute_code(code, silent, allow_stdin)
+
     def do_complete(self, code, cursor_pos):
         default = {
             "matches": [],
@@ -230,9 +252,7 @@ class MagmaKernel(Kernel):
             "metadata": {},
             "status": "ok",
         }
-        token = code[:cursor_pos]
-        for sep in ["\n", ";", " ", "("]:
-            token = token.rpartition(sep)[-1]
+        token = _extract_token(code, cursor_pos)
         if not token:
             return default
         token_escaped = token.replace("\\", "\\\\").replace('"', '\\"')
