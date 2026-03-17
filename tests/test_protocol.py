@@ -11,12 +11,17 @@ import time
 
 import pytest
 
+from unittest.mock import MagicMock
+
 from magma_kernel.protocol import (
     CONT_BYTE,
     EOT_BYTE,
     INDENT_WIDTH,
     TAG_MARKER,
     ExecutionResult,
+    InputAborted,
+    MagmaCallbacks,
+    MagmaProcess,
     MagmaState,
     OutputAccumulator,
     ParseError,
@@ -319,7 +324,7 @@ class TestReadLine:
 
         r, w = os.pipe()
         proc = MagmaProcess.__new__(MagmaProcess)
-        proc._buf = b""
+        proc._buf = bytearray()
 
         # Create a minimal mock for _proc with stdout having the right fileno
         class FakeStdout:
@@ -630,6 +635,106 @@ class TestTbIndentHeuristic:
         p = ParsedLine(Tag.TB, TagKind.OUTPUT, text="", indent_level=0)
         _apply_tb_indent_heuristic(p)
         assert p.indent_level == 0
+
+
+# ===================================================================
+# MagmaProcess unit tests (no Magma required)
+# ===================================================================
+
+
+class TestMagmaProcessUnit:
+    """Test MagmaProcess methods without a real Magma process."""
+
+    def test_send_input_dead_process_raises(self):
+        """send_input should raise RuntimeError when process is not running."""
+        proc = MagmaProcess()
+        with pytest.raises(RuntimeError, match="not running"):
+            proc.send_input("test;")
+
+    def test_send_line_dead_process_raises(self):
+        """send_line should raise RuntimeError when process is not running."""
+        proc = MagmaProcess()
+        with pytest.raises(RuntimeError, match="not running"):
+            proc.send_line("test")
+
+    def test_read_line_dead_process_returns_none(self):
+        """_read_line should return None when process is None."""
+        proc = MagmaProcess()
+        assert proc._read_line() is None
+
+    def test_rdi_er_triggers_input_request(self):
+        """RDI_ER should trigger on_input_request per protocol spec."""
+        proc = MagmaProcess()
+
+        lines = [
+            bytes([TAG_MARKER]) + b"RDI_ER 0" + bytes([TAG_MARKER]) + b"bad input",
+            bytes([TAG_MARKER]) + b"RDY 0 0 0 0 0",
+        ]
+        line_iter = iter(lines)
+        proc._read_line = lambda: next(line_iter, None)
+        proc.send_line = MagicMock()
+        proc._state = MagmaState.RUNNING
+
+        input_requested = []
+        callbacks = MagmaCallbacks(
+            on_input_request=lambda prompt: (input_requested.append(prompt), "42")[1],
+        )
+
+        result = proc.process_until_ready(callbacks)
+
+        assert len(input_requested) == 1
+        proc.send_line.assert_called_once_with("42")
+        assert result.state == MagmaState.READY
+
+    def test_input_aborted_does_not_send_line(self):
+        """InputAborted from callback should not send a line."""
+        proc = MagmaProcess()
+
+        lines = [
+            bytes([TAG_MARKER]) + b"RD_IN",
+            bytes([TAG_MARKER]) + b"INT",
+            bytes([TAG_MARKER]) + b"RDY 0 0 0 0 0",
+        ]
+        line_iter = iter(lines)
+        proc._read_line = lambda: next(line_iter, None)
+        proc.send_line = MagicMock()
+        proc._state = MagmaState.RUNNING
+
+        def abort_input(prompt):
+            raise InputAborted()
+
+        callbacks = MagmaCallbacks(on_input_request=abort_input)
+
+        result = proc.process_until_ready(callbacks)
+
+        proc.send_line.assert_not_called()
+        assert result.interrupted
+        assert result.state == MagmaState.READY
+
+    def test_input_aborted_on_rdi_er(self):
+        """InputAborted on RDI_ER should not send a line."""
+        proc = MagmaProcess()
+
+        lines = [
+            bytes([TAG_MARKER]) + b"RDI_ER 0" + bytes([TAG_MARKER]) + b"bad input",
+            bytes([TAG_MARKER]) + b"INT",
+            bytes([TAG_MARKER]) + b"RDY 0 0 0 0 0",
+        ]
+        line_iter = iter(lines)
+        proc._read_line = lambda: next(line_iter, None)
+        proc.send_line = MagicMock()
+        proc._state = MagmaState.RUNNING
+
+        def abort_input(prompt):
+            raise InputAborted()
+
+        callbacks = MagmaCallbacks(on_input_request=abort_input)
+
+        result = proc.process_until_ready(callbacks)
+
+        proc.send_line.assert_not_called()
+        assert result.interrupted
+        assert result.state == MagmaState.READY
 
 
 # ===================================================================

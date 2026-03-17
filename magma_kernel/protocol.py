@@ -113,6 +113,10 @@ class ParseError(Exception):
     """Raised when a tagged line cannot be parsed."""
 
 
+class InputAborted(Exception):
+    """Raised by on_input_request to abort without sending a response."""
+
+
 @dataclass
 class ParsedLine:
     tag: Tag
@@ -278,7 +282,7 @@ class MagmaProcess:
         self._magma_path = magma_path
         self._log = logger or logging.getLogger(__name__)
         self._proc: Optional[subprocess.Popen] = None
-        self._buf = b""
+        self._buf = bytearray()
         self._state = MagmaState.STARTING
         self._stderr_thread: Optional[threading.Thread] = None
 
@@ -300,7 +304,7 @@ class MagmaProcess:
         finally:
             signal.signal(signal.SIGINT, sig)
 
-        self._buf = b""
+        self._buf = bytearray()
         self._state = MagmaState.STARTING
 
         # Drain stderr in background to prevent pipe buffer deadlock.
@@ -347,13 +351,14 @@ class MagmaProcess:
         Python's ``BufferedReader`` around signal interruption.
         Returns ``None`` on EOF.
         """
-        assert self._proc is not None
+        if self._proc is None:
+            return None
         fd = self._proc.stdout.fileno()
         while True:
             idx = self._buf.find(b"\n")
             if idx != -1:
-                line = self._buf[:idx]
-                self._buf = self._buf[idx + 1:]
+                line = bytes(self._buf[:idx])
+                del self._buf[:idx + 1]
                 return line
             try:
                 chunk = os.read(fd, _BUF_SIZE)
@@ -362,21 +367,23 @@ class MagmaProcess:
             if not chunk:
                 # EOF — return partial line if any
                 if self._buf:
-                    line = self._buf
-                    self._buf = b""
+                    line = bytes(self._buf)
+                    self._buf.clear()
                     return line
                 return None
-            self._buf += chunk
+            self._buf.extend(chunk)
 
     def send_input(self, code: str) -> None:
         """Send an input set (code + EOT) to Magma."""
-        assert self._proc is not None and self._proc.stdin is not None
+        if self._proc is None or self._proc.stdin is None:
+            raise RuntimeError("Magma process is not running")
         self._proc.stdin.write(code.encode("utf-8") + bytes([EOT_BYTE]))
         self._proc.stdin.flush()
 
     def send_line(self, line: str) -> None:
         """Send a newline-terminated line (debugger/read directives)."""
-        assert self._proc is not None and self._proc.stdin is not None
+        if self._proc is None or self._proc.stdin is None:
+            raise RuntimeError("Magma process is not running")
         data = line if line.endswith("\n") else line + "\n"
         self._proc.stdin.write(data.encode("utf-8"))
         self._proc.stdin.flush()
@@ -454,8 +461,16 @@ class MagmaProcess:
                     stderr_acc.append(parsed)
                     if tag in _ERROR_TAGS:
                         result.had_error = True
-                    # RDI_ER: accumulate the error text, then an RDI_IN
-                    # will follow — keep looping
+                    # RDI_ER: per spec, treat as implicit input request
+                    if tag == Tag.RDI_ER:
+                        flush_both()
+                        prompt = prompt_acc.flush()
+                        try:
+                            response = callbacks.on_input_request(prompt)
+                        except InputAborted:
+                            pass  # interrupt sent; loop reads INT+RDY
+                        else:
+                            self.send_line(response)
                 continue
 
             # --- Status tags ---
@@ -483,7 +498,10 @@ class MagmaProcess:
             if tag == Tag.RD_IN or tag == Tag.RDI_IN:
                 flush_both()
                 prompt = prompt_acc.flush()
-                response = callbacks.on_input_request(prompt)
+                try:
+                    response = callbacks.on_input_request(prompt)
+                except InputAborted:
+                    continue
                 self.send_line(response)
                 continue
 
@@ -513,7 +531,8 @@ class MagmaProcess:
 
     def _drain_stderr(self) -> None:
         """Background thread: read and log Magma's stderr until EOF."""
-        assert self._proc is not None
+        if self._proc is None:
+            return
         try:
             for line in self._proc.stderr:
                 text = line.decode("utf-8", errors="replace").rstrip()
@@ -561,6 +580,9 @@ class MagmaProcess:
             except subprocess.TimeoutExpired:
                 self._proc.kill()
                 self._proc.wait()
+        if self._stderr_thread is not None:
+            self._stderr_thread.join(timeout=2)
+            self._stderr_thread = None
         self._state = MagmaState.DEAD
         self._proc = None
 
