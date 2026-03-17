@@ -528,6 +528,39 @@ def test_slow_output_not_delayed(kc):
 # --- History ---
 
 
+# --- Inspection (shift-tab) ---
+
+
+def test_inspect_intrinsic(kc):
+    """Shift-tab on an intrinsic should return its signatures."""
+    msg_id = kc.inspect("IsPrime", 7, detail_level=0)
+    reply = kc.get_shell_msg(timeout=30)
+    content = reply["content"]
+    assert content["found"]
+    text = content["data"]["text/plain"]
+    assert "IsPrime" in text
+    assert "Signature" in text or "BoolElt" in text
+
+
+def test_inspect_unknown(kc):
+    """Inspect on an unknown token should fall back to a handbook link."""
+    msg_id = kc.inspect("xyzzy_nonexistent", 17, detail_level=0)
+    reply = kc.get_shell_msg(timeout=30)
+    content = reply["content"]
+    assert content["found"]
+    assert "magma.maths.usyd.edu.au" in content["data"].get("text/html", "")
+
+
+def test_inspect_empty(kc):
+    """Inspect on empty code should return not-found."""
+    msg_id = kc.inspect("", 0, detail_level=0)
+    reply = kc.get_shell_msg(timeout=30)
+    assert not reply["content"]["found"]
+
+
+# --- History ---
+
+
 def test_history_tail(kc):
     """History tail returns recent entries."""
     _execute(kc, "hist_a := 1;")

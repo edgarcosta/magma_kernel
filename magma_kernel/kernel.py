@@ -163,6 +163,37 @@ class MagmaKernel(Kernel):
             # More closers than openers — odd, let Magma decide
             return {"status": "unknown"}
 
+    def do_inspect(self, code, cursor_pos, detail_level=0, omit_sections=()):
+        token = _extract_token(code, cursor_pos)
+        if not token or not self.process.alive:
+            return {"status": "ok", "found": False, "data": {}, "metadata": {}}
+
+        # Evaluating "Token;" on an intrinsic gives its signatures via SIG tags
+        token_escaped = token.replace("\\", "\\\\").replace('"', '\\"')
+        stdout, stderr = self._magma_eval(f'{token};')
+
+        if stderr or not stdout.strip():
+            # Not an intrinsic or errored — fall back to handbook link
+            url = _HANDBOOK_BASE + quote(token)
+            safe = html.escape(token)
+            return {
+                "status": "ok",
+                "found": True,
+                "data": {
+                    "text/plain": f"Magma: {token} (see handbook)",
+                    "text/html": f'<a href="{url}" target="magma_help">'
+                                 f'Magma handbook: {safe}</a>',
+                },
+                "metadata": {},
+            }
+
+        return {
+            "status": "ok",
+            "found": True,
+            "data": {"text/plain": stdout.strip()},
+            "metadata": {},
+        }
+
     def _do_help(self, keyword):
         url_keyword = quote(keyword)
         safe_keyword = html.escape(keyword)
