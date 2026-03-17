@@ -35,7 +35,7 @@ _STRING_OR_COMMENT_RE = re.compile(r'"[^"]*"|//[^\n]*')
 # Regex to find keywords (whole words only)
 _KEYWORD_RE = re.compile(
     r"\b(end\s+for|end\s+if|end\s+while|end\s+function|end\s+procedure|"
-    r"end\s+try|end\s+case|until|for|if|while|function|procedure|try|case|repeat)\b",
+    r"end\s+try|end\s+case|until|for|if|while|function|procedure|try|case(?!<)|repeat)\b",
     re.IGNORECASE,
 )
 

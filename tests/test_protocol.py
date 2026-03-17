@@ -479,6 +479,14 @@ class TestDoIsComplete:
         """Inner semicolon with unbalanced block."""
         assert self._check("for i in [1..10] do\n  print i;")["status"] == "incomplete"
 
+    def test_case_expression_not_block(self):
+        """case< expression form should not be counted as a block opener."""
+        assert self._check("y := case< x | 1: 1, else 3 >;")["status"] == "complete"
+
+    def test_case_statement_still_works(self):
+        """case statement form should still be counted as a block opener."""
+        assert self._check("case x when 1: y := 1;")["status"] == "incomplete"
+
 
 # ===================================================================
 # _format_error_position
