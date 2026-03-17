@@ -9,6 +9,7 @@ from ipykernel.kernelbase import Kernel
 from . import __version__
 from .protocol import (
     ExecutionResult,
+    InputAborted,
     MagmaCallbacks,
     MagmaProcess,
     MagmaState,
@@ -192,7 +193,6 @@ class MagmaKernel(Kernel):
             return {"status": "ok", "found": False, "data": {}, "metadata": {}}
 
         # Evaluating "Token;" on an intrinsic gives its signatures via SIG tags
-        token_escaped = token.replace("\\", "\\\\").replace('"', '\\"')
         stdout, stderr = self._magma_eval(f'{token};')
 
         if stderr or not stdout.strip():
@@ -391,7 +391,7 @@ class MagmaKernel(Kernel):
                     "but this session does not support stdin\n"
                 )
                 self.process.interrupt()
-                return ""
+                raise InputAborted()
 
         callbacks = MagmaCallbacks(
             on_stdout=on_stdout,
