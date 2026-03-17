@@ -423,10 +423,26 @@ class MagmaKernel(Kernel):
 
         try:
             self.process.send_input(code)
+        except KeyboardInterrupt:
+            # Interrupt arrived during write — input may be incomplete.
+            # Kill and restart to avoid a deadlocked pipe.
+            self.process.stop(force=True)
+            on_stderr("Interrupted during send. Magma process restarted.\n")
+            self._start_magma()
+            return {"status": "abort", "execution_count": self.execution_count}
+
+        try:
             result = self.process.process_until_ready(callbacks)
         except KeyboardInterrupt:
             self.process.interrupt()
-            result = self.process.process_until_ready(callbacks)
+            try:
+                result = self.process.process_until_ready(callbacks)
+            except KeyboardInterrupt:
+                # Second interrupt during recovery — kill and restart
+                self.process.stop(force=True)
+                on_stderr("Double interrupt. Magma process restarted.\n")
+                self._start_magma()
+                return {"status": "abort", "execution_count": self.execution_count}
 
         # Auto-exit debugger, preserving the error state
         if result.state == MagmaState.DEBUGGER:
