@@ -26,6 +26,7 @@ classifiers=[
 dependencies = [
     "ipykernel",
     "jupyter_client",
+    "pygments",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +36,9 @@ test = ["pytest", "pytest-cov"]
 Homepage = "https://github.com/edgarcosta/magma_kernel"
 Repository = "https://github.com/edgarcosta/magma_kernel"
 Issues = "https://github.com/edgarcosta/magma_kernel/issues"
+
+[project.entry-points."pygments.lexers"]
+magma = "magma_kernel.lexer:MagmaLexer"
 
 [tool.hatch.version]
 path = "magma_kernel/__init__.py"
