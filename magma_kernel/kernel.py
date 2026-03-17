@@ -61,6 +61,23 @@ def _extract_token(code, cursor_pos):
     return token
 
 
+def _format_error_position(code, erp):
+    """Build a caret line showing the error position within the input.
+
+    *erp* is a 4-tuple ``(start_line, start_col, err_line, err_col)``
+    from the ERP tag (0-based).  Returns a string with the offending
+    source line and a caret pointer, or empty string if positions are
+    out of range.
+    """
+    _, _, err_line, err_col = erp
+    lines = code.splitlines()
+    if err_line < 0 or err_line >= len(lines):
+        return ""
+    src_line = lines[err_line]
+    caret = " " * err_col + "^"
+    return f"  {src_line}\n  {caret}\n"
+
+
 class MagmaKernel(Kernel):
     implementation = "magma_kernel"
     implementation_version = __version__
@@ -335,8 +352,12 @@ class MagmaKernel(Kernel):
             "user_expressions": {},
         }
 
-    def _execute_code(self, code, silent, allow_stdin):
-        """Execute Magma code and return a Jupyter reply dict."""
+    def _execute_code(self, code, silent, allow_stdin, original_code=None):
+        """Execute Magma code and return a Jupyter reply dict.
+
+        *original_code* is the user's raw input before semicolon
+        appending, used for error position annotation.
+        """
         if not self.process.alive:
             self.send_response(
                 self.iopub_socket, "stream",
@@ -388,9 +409,12 @@ class MagmaKernel(Kernel):
         # Auto-exit debugger, preserving the error state
         if result.state == MagmaState.DEBUGGER:
             had_error = result.had_error
+            erp = result.erp
             self.process.send_line("q")
             result = self.process.process_until_ready(callbacks)
             result.had_error = result.had_error or had_error
+            if erp is not None:
+                result.erp = erp
 
         if result.state == MagmaState.DEAD:
             on_stderr("Magma process died unexpectedly. Will restart on next execution.\n")
@@ -403,12 +427,19 @@ class MagmaKernel(Kernel):
             m = _ERROR_RE.search(stderr_text)
             ename = m.group(1) if m else "MagmaError"
             evalue = m.group(2) if m else ""
+            tb_lines = [stderr_text] if stderr_text.strip() else []
+            # Annotate with error position caret if available
+            src = original_code if original_code is not None else code
+            if result.erp is not None:
+                pos_text = _format_error_position(src, result.erp)
+                if pos_text:
+                    tb_lines.append(pos_text)
             return {
                 "status": "error",
                 "execution_count": self.execution_count,
                 "ename": ename,
                 "evalue": evalue,
-                "traceback": [stderr_text] if stderr_text.strip() else [],
+                "traceback": tb_lines,
             }
 
         return {
@@ -450,10 +481,11 @@ class MagmaKernel(Kernel):
         if magic_result is not None:
             return magic_result
 
+        original_code = code
         if not code.endswith(";"):
             code += ";"
 
-        return self._execute_code(code, silent, allow_stdin)
+        return self._execute_code(code, silent, allow_stdin, original_code=original_code)
 
     def do_complete(self, code, cursor_pos):
         default = {

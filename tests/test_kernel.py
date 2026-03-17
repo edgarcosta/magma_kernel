@@ -626,6 +626,17 @@ def test_magic_unknown_is_magma_code(kc):
     assert reply["status"] in ("ok", "error")
 
 
+# --- Error position ---
+
+
+def test_error_position_caret(kc):
+    """Parse errors should include a caret pointing to the error position."""
+    reply, stdout, stderr, _ = _execute(kc, "x := ;")
+    assert reply["status"] == "error"
+    tb = reply.get("traceback", [])
+    assert any("^" in line for line in tb), f"No caret in traceback: {tb}"
+
+
 def test_history_tail(kc):
     """History tail returns recent entries."""
     _execute(kc, "hist_a := 1;")
