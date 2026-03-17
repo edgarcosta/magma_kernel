@@ -443,6 +443,14 @@ class MagmaKernel(Kernel):
 
         if result.state == MagmaState.DEAD:
             on_stderr("Magma process died unexpectedly. Will restart on next execution.\n")
+            stderr_text = "".join(stderr_parts)
+            return {
+                "status": "error",
+                "execution_count": self.execution_count,
+                "ename": "MagmaCrash",
+                "evalue": "Magma process died unexpectedly",
+                "traceback": [stderr_text] if stderr_text.strip() else [],
+            }
 
         if result.interrupted:
             return {"status": "abort", "execution_count": self.execution_count}

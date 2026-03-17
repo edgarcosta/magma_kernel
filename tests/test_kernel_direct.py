@@ -311,6 +311,18 @@ def test_magic_unknown(kernel):
 # --- Crash recovery ---
 
 
+def test_crash_during_execution_returns_error(kernel):
+    """When Magma dies mid-execution (quit;), reply should be error, not ok."""
+    _reset_mock(kernel)
+    result = kernel.do_execute("quit;", silent=False)
+    assert result["status"] == "error"
+    assert result["ename"] == "MagmaCrash"
+    _, stderr = _get_streams(kernel)
+    assert "died unexpectedly" in stderr
+    # Restart for subsequent tests
+    kernel._start_magma()
+
+
 def test_crash_recovery(kernel):
     _reset_mock(kernel)
     # Kill the process externally
