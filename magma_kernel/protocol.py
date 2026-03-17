@@ -10,7 +10,7 @@ import os
 import signal
 import subprocess
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Callable, Optional
 
@@ -501,7 +501,7 @@ class MagmaProcess:
                 try:
                     response = callbacks.on_input_request(prompt)
                 except InputAborted:
-                    continue
+                    continue  # interrupt sent; loop reads INT+RDY
                 self.send_line(response)
                 continue
 
@@ -573,6 +573,13 @@ class MagmaProcess:
             try:
                 if self._proc.stdin and not self._proc.stdin.closed:
                     self._proc.stdin.close()
+            except OSError:
+                pass
+            # Drain stdout to prevent Magma blocking on a full pipe buffer
+            try:
+                if self._proc.stdout and not self._proc.stdout.closed:
+                    while os.read(self._proc.stdout.fileno(), _BUF_SIZE):
+                        pass
             except OSError:
                 pass
             try:
