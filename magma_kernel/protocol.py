@@ -7,11 +7,13 @@ that ``kernel.py`` wires to Jupyter messages.
 
 import logging
 import os
+import select
 import signal
 import subprocess
 import threading
 from dataclasses import dataclass
 from enum import Enum, auto
+from time import monotonic
 from typing import Callable, Optional
 
 # ---------------------------------------------------------------------------
@@ -575,11 +577,22 @@ class MagmaProcess:
                     self._proc.stdin.close()
             except OSError:
                 pass
-            # Drain stdout to prevent Magma blocking on a full pipe buffer
+            # Drain stdout to prevent Magma blocking on a full pipe buffer.
+            # Use select() with a deadline so we don't block forever if
+            # Magma is slow to exit after stdin closes.
             try:
                 if self._proc.stdout and not self._proc.stdout.closed:
-                    while os.read(self._proc.stdout.fileno(), _BUF_SIZE):
-                        pass
+                    fd = self._proc.stdout.fileno()
+                    deadline = monotonic() + 2
+                    while True:
+                        remaining = deadline - monotonic()
+                        if remaining <= 0:
+                            break
+                        ready, _, _ = select.select([fd], [], [], remaining)
+                        if not ready:
+                            break
+                        if not os.read(fd, _BUF_SIZE):
+                            break
             except OSError:
                 pass
             try:

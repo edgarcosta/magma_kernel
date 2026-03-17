@@ -1032,6 +1032,19 @@ class TestMagmaProcess:
         proc.stop(force=True)  # should not raise
         proc.stop(force=False)  # should not raise
 
+    def test_graceful_stop_does_not_hang(self):
+        """Graceful stop must complete within a bounded time even if Magma
+        is producing output when stdin closes."""
+        proc = self._make()
+        # Start a long-running computation so Magma is busy
+        proc.send_input("for i in [1..10^8] do _ := i; end for;")
+        start = time.monotonic()
+        proc.stop(force=False)
+        elapsed = time.monotonic() - start
+        assert not proc.alive
+        # Should finish within ~10s (2s drain + 5s wait + overhead)
+        assert elapsed < 15, f"Graceful stop took {elapsed:.1f}s — may have hung"
+
     # --- Error paths ---
 
     def test_runtime_error_to_stderr(self):
