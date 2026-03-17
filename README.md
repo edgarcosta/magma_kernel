@@ -85,7 +85,7 @@ pip install -e ".[test]"
 pytest tests/ -v
 ```
 
-Tests are split into three files:
+Tests are split into four files:
 - `tests/test_protocol.py` — protocol parser, accumulator, buffering, and live `MagmaProcess` tests
 - `tests/test_kernel_direct.py` — in-process kernel tests (calls `do_execute` etc. directly)
 - `tests/test_kernel.py` — full Jupyter integration tests via `KernelManager`
