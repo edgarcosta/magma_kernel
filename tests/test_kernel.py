@@ -608,6 +608,17 @@ def test_magic_load_missing(kc):
     assert "Cannot read" in stderr
 
 
+def test_magic_reset(kc):
+    """%reset restarts the Magma process."""
+    _execute(kc, "reset_test := 42;")
+    reply, stdout, stderr, _ = _execute(kc, "%reset")
+    assert reply["status"] == "ok"
+    assert "restarted" in stderr.lower()
+    # Variable should be gone after reset
+    reply, stdout, stderr, _ = _execute(kc, "reset_test;")
+    assert reply["status"] == "error"
+
+
 def test_magic_unknown_is_magma_code(kc):
     """An unknown %magic is treated as regular Magma code."""
     reply, stdout, stderr, _ = _execute(kc, "%notamagic")

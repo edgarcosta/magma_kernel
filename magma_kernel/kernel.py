@@ -85,7 +85,8 @@ class MagmaKernel(Kernel):
         self._start_magma()
 
     def _start_magma(self):
-        self.process = MagmaProcess(logger=self.log)
+        magma_path = os.environ.get("MAGMA_PATH", "magma")
+        self.process = MagmaProcess(magma_path=magma_path, logger=self.log)
         banner_text = self.process.start()
 
         # Query version
@@ -229,6 +230,8 @@ class MagmaKernel(Kernel):
             return self._magic_load(args, silent, allow_stdin)
         elif magic in ("who", "whos"):
             return self._magic_who(silent)
+        elif magic == "reset":
+            return self._magic_reset(silent)
         else:
             return None  # unknown magic, treat as Magma code
 
@@ -309,6 +312,22 @@ class MagmaKernel(Kernel):
                 {"name": "stdout", "text": stdout},
             )
 
+        return {
+            "status": "ok",
+            "execution_count": self.execution_count,
+            "payload": [],
+            "user_expressions": {},
+        }
+
+    def _magic_reset(self, silent):
+        """Restart the Magma process."""
+        self.process.stop(force=True)
+        self._start_magma()
+        if not silent:
+            self.send_response(
+                self.iopub_socket, "stream",
+                {"name": "stderr", "text": "Magma process restarted.\n"},
+            )
         return {
             "status": "ok",
             "execution_count": self.execution_count,
