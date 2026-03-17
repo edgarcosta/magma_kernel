@@ -75,6 +75,8 @@ class MagmaKernel(Kernel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._history = []  # list of (session, line_number, code)
+        self._history_count = 0
         self._start_magma()
 
     def _start_magma(self):
@@ -109,6 +111,30 @@ class MagmaKernel(Kernel):
         if restart:
             self._start_magma()
         return {"status": "ok", "restart": restart}
+
+    def do_history(self, hist_access_type, output, raw, session=None,
+                   start=None, stop=None, n=None, pattern=None, unique=False):
+        if hist_access_type == "tail":
+            entries = self._history[-(n or 10):]
+        elif hist_access_type == "range":
+            entries = self._history[(start or 0):(stop or len(self._history))]
+        elif hist_access_type == "search":
+            import fnmatch
+            entries = [
+                e for e in self._history
+                if fnmatch.fnmatch(e[2], pattern or "*")
+            ]
+            if unique:
+                seen = set()
+                deduped = []
+                for e in reversed(entries):
+                    if e[2] not in seen:
+                        seen.add(e[2])
+                        deduped.append(e)
+                entries = list(reversed(deduped))
+        else:
+            entries = []
+        return {"status": "ok", "history": entries}
 
     def do_is_complete(self, code):
         code = code.strip()
@@ -247,6 +273,11 @@ class MagmaKernel(Kernel):
                 "payload": [],
                 "user_expressions": {},
             }
+
+        # Record history
+        if store_history and code.strip():
+            self._history_count += 1
+            self._history.append((0, self._history_count, code))
 
         if code.lstrip().startswith("?"):
             self._do_help(code.lstrip()[1:])

@@ -523,3 +523,27 @@ def test_slow_output_not_delayed(kc):
     assert len(stdout_msgs) >= 2, (
         f"Expected output split across messages, got {len(stdout_msgs)}: {stdout_msgs}"
     )
+
+
+# --- History ---
+
+
+def test_history_tail(kc):
+    """History tail returns recent entries."""
+    _execute(kc, "hist_a := 1;")
+    _execute(kc, "hist_b := 2;")
+    msg_id = kc.history(hist_access_type="tail", n=2)
+    reply = kc.get_shell_msg(timeout=10)
+    history = reply["content"]["history"]
+    assert len(history) >= 2
+    codes = [h[2] for h in history]
+    assert "hist_b := 2;" in codes[-1]
+
+
+def test_history_search(kc):
+    """History search filters by pattern."""
+    _execute(kc, "search_target := 999;")
+    msg_id = kc.history(hist_access_type="search", pattern="*search_target*")
+    reply = kc.get_shell_msg(timeout=10)
+    history = reply["content"]["history"]
+    assert any("search_target" in h[2] for h in history)
