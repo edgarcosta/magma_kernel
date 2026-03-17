@@ -44,7 +44,7 @@ _NODE_TOKEN_MAP = {
 
 # Parent node types that promote child identifiers
 _FUNCTION_CALL_PARENTS = {"call"}
-_TYPE_PARENTS = {"type", "typed_identifier", "ref_typed_identifier"}
+_TYPE_PARENTS = {"type"}
 _DEFINITION_PARENTS = {
     "function_definition", "procedure_definition", "intrinsic_definition",
 }
@@ -151,11 +151,11 @@ def _ts_token_for_node(node, source):
         if text_str in _WORD_OPERATORS:
             return Operator.Word
 
-        if all(c in _PUNCTUATION_CHARS for c in text_str) and text_str:
-            return Punctuation
-
         if text_str in _SYMBOL_OPERATORS:
             return Operator
+
+        if all(c in _PUNCTUATION_CHARS for c in text_str) and text_str:
+            return Punctuation
 
         return Punctuation
 
@@ -185,6 +185,10 @@ class MagmaLexer(Lexer):
                 end = node.end_byte
                 raw = source[start:end]
 
+                # Emit any gap between previous token and this one
+                if start > prev_end:
+                    yield prev_end, Text, source[prev_end:start].decode("utf-8", errors="replace")
+
                 # Tree-sitter sometimes includes leading/trailing whitespace
                 # in anonymous tokens.  Split it off as Text.
                 lstripped = raw.lstrip()
@@ -194,17 +198,18 @@ class MagmaLexer(Lexer):
                     start += lead_ws
                     raw = lstripped
 
-                rstripped = raw.rstrip()
-                if len(raw) > len(rstripped):
-                    raw = rstripped
-
-                # Emit any gap between previous token and this one
-                if start > prev_end:
-                    yield prev_end, Text, source[prev_end:start].decode("utf-8", errors="replace")
+                trail_ws = len(raw) - len(raw.rstrip())
+                if trail_ws > 0:
+                    raw = raw[:-trail_ws]
 
                 if raw:
                     token = _ts_token_for_node(node, source)
                     yield start, token, raw.decode("utf-8", errors="replace")
+
+                content_end = start + len(raw)
+                if trail_ws > 0:
+                    yield content_end, Text, source[content_end:end].decode("utf-8", errors="replace")
+
                 prev_end = end
             else:
                 for child in node.children:

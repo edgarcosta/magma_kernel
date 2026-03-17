@@ -233,6 +233,40 @@ def test_backtick_attribute(lexer):
     assert toks
 
 
+# --- Round-trip (text reconstruction) ---
+
+
+@pytest.mark.parametrize("code", [
+    "x := 1;",
+    "y := x div 2;",
+    "for i in [1..10] do print i; end for;",
+    "function Foo(x :: RngIntElt) return x^2; end function;",
+    "a +:= 1;",
+    'x := "hello";',
+    "// comment\nx := 1;",
+])
+def test_round_trip(lexer, code):
+    """Concatenating all token values must reproduce the input."""
+    tokens = list(lexer.get_tokens_unprocessed(code))
+    reconstructed = "".join(v for _, _, v in tokens)
+    assert reconstructed == code
+
+
+def test_typed_identifier_variable_is_name(lexer):
+    """Variable name in typed parameter should be Name, not Name.Class."""
+    toks = _types(lexer, "function Foo(x :: RngIntElt) return x; end function;")
+    # x should never be Name.Class
+    assert not any(t is Name.Class and v == "x" for t, v in toks)
+    # RngIntElt should be Name.Class
+    assert any(t is Name.Class and v == "RngIntElt" for t, v in toks)
+
+
+def test_range_operator_is_operator(lexer):
+    """Range operator '..' should be Operator, not Punctuation."""
+    toks = _types(lexer, "[1..10]")
+    assert any(t is Operator and v == ".." for t, v in toks)
+
+
 # --- Entry point ---
 
 
