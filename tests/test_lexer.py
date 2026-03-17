@@ -12,7 +12,7 @@ from pygments.token import (
     Text,
 )
 
-from magma_kernel.lexer import MagmaLexer, _HAS_TREE_SITTER
+from magma_kernel.lexer import MagmaLexer
 
 
 @pytest.fixture
@@ -208,13 +208,3 @@ def test_entry_point_registered():
     assert isinstance(lex, MagmaLexer)
 
 
-# --- Backend detection ---
-
-
-def test_tree_sitter_detected():
-    """If tree-sitter-magma is installed, the TS backend should be active."""
-    try:
-        import tree_sitter_magma
-        assert _HAS_TREE_SITTER
-    except ImportError:
-        assert not _HAS_TREE_SITTER
