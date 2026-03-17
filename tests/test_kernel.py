@@ -110,14 +110,17 @@ def test_whitespace_only_cell(kc):
 def test_runtime_error(kc):
     reply, stdout, stderr, _ = _execute(kc, '1 + "a";')
     assert reply["status"] == "error"
-    assert stderr  # error message goes to stderr now
+    assert stderr
+    assert "Runtime error" in reply["ename"]
+    assert reply["traceback"]
 
 
 def test_user_error(kc):
     """Syntax errors are reported as User error in Magma."""
     reply, stdout, stderr, _ = _execute(kc, "if true then")
     assert reply["status"] == "error"
-    assert stderr  # error message on stderr
+    assert stderr
+    assert reply["traceback"]
 
 
 def test_error_does_not_break_subsequent_cells(kc):

@@ -37,6 +37,12 @@ _KEYWORD_RE = re.compile(
 )
 
 
+# Parse "Runtime error in 'foo': message" style errors
+_ERROR_RE = re.compile(
+    r"^((?:Runtime|User|Internal) error[^:\n]*):\s*(.*)",
+    re.MULTILINE,
+)
+
 _HANDBOOK_BASE = (
     "http://magma.maths.usyd.edu.au/magma/handbook/search?"
     "chapters=1&examples=1&intrinsics=1&query="
@@ -150,6 +156,8 @@ class MagmaKernel(Kernel):
             )
             self._start_magma()
 
+        stderr_parts = []
+
         def on_stdout(text):
             if not silent:
                 self.send_response(
@@ -158,6 +166,7 @@ class MagmaKernel(Kernel):
                 )
 
         def on_stderr(text):
+            stderr_parts.append(text)
             if not silent:
                 self.send_response(
                     self.iopub_socket, "stream",
@@ -202,12 +211,16 @@ class MagmaKernel(Kernel):
             return {"status": "abort", "execution_count": self.execution_count}
 
         if result.had_error:
+            stderr_text = "".join(stderr_parts)
+            m = _ERROR_RE.search(stderr_text)
+            ename = m.group(1) if m else "MagmaError"
+            evalue = m.group(2) if m else ""
             return {
                 "status": "error",
                 "execution_count": self.execution_count,
-                "ename": "MagmaError",
-                "evalue": "",
-                "traceback": [],
+                "ename": ename,
+                "evalue": evalue,
+                "traceback": [stderr_text] if stderr_text.strip() else [],
             }
 
         return {
