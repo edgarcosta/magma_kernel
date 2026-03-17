@@ -104,6 +104,14 @@ class MagmaKernel(Kernel):
     implementation = "magma_kernel"
     implementation_version = __version__
 
+    def _ok_reply(self):
+        return {
+            "status": "ok",
+            "execution_count": self.execution_count,
+            "payload": [],
+            "user_expressions": {},
+        }
+
     language_info = {
         "name": "magma",
         "codemirror_mode": "pascal",
@@ -281,12 +289,7 @@ class MagmaKernel(Kernel):
                     self.iopub_socket, "stream",
                     {"name": "stderr", "text": "Usage: %time <code>\n"},
                 )
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
+            return self._ok_reply()
 
         if not code.endswith(";"):
             code += ";"
@@ -304,12 +307,7 @@ class MagmaKernel(Kernel):
                     self.iopub_socket, "stream",
                     {"name": "stderr", "text": "Usage: %load <filename>\n"},
                 )
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
+            return self._ok_reply()
 
         try:
             with open(filename) as f:
@@ -333,12 +331,7 @@ class MagmaKernel(Kernel):
     def _magic_who(self, silent):
         """List user-defined identifiers."""
         if not self.process.alive:
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
+            return self._ok_reply()
 
         stdout, _ = self._magma_eval(
             'S := GetIdentifierNames("assigned_below"); '
@@ -351,12 +344,7 @@ class MagmaKernel(Kernel):
                 {"name": "stdout", "text": stdout},
             )
 
-        return {
-            "status": "ok",
-            "execution_count": self.execution_count,
-            "payload": [],
-            "user_expressions": {},
-        }
+        return self._ok_reply()
 
     def _magic_reset(self, silent):
         """Restart the Magma process."""
@@ -367,12 +355,7 @@ class MagmaKernel(Kernel):
                 self.iopub_socket, "stream",
                 {"name": "stderr", "text": "Magma process restarted.\n"},
             )
-        return {
-            "status": "ok",
-            "execution_count": self.execution_count,
-            "payload": [],
-            "user_expressions": {},
-        }
+        return self._ok_reply()
 
     def _execute_code(self, code, silent, allow_stdin, original_code=None):
         """Execute Magma code and return a Jupyter reply dict.
@@ -484,12 +467,7 @@ class MagmaKernel(Kernel):
                 "traceback": tb_lines,
             }
 
-        return {
-            "status": "ok",
-            "execution_count": self.execution_count,
-            "payload": [],
-            "user_expressions": {},
-        }
+        return self._ok_reply()
 
     def do_execute(
         self, code, silent, store_history=True, user_expressions=None, allow_stdin=False
@@ -497,12 +475,7 @@ class MagmaKernel(Kernel):
         code = code.rstrip()
 
         if not code.lstrip():
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
+            return self._ok_reply()
 
         # Record history
         if store_history and code.strip():
@@ -511,12 +484,7 @@ class MagmaKernel(Kernel):
 
         if code.lstrip().startswith("?"):
             self._do_help(code.lstrip()[1:])
-            return {
-                "status": "ok",
-                "execution_count": self.execution_count,
-                "payload": [],
-                "user_expressions": {},
-            }
+            return self._ok_reply()
 
         # Try line magic
         magic_result = self._handle_magic(code, silent, allow_stdin)
