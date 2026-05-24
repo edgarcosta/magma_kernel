@@ -396,96 +396,74 @@ class TestReadLine:
 # ===================================================================
 
 
+@pytest.fixture(scope="module")
+def bare_kernel():
+    """A MagmaKernel instance with no Magma process — for pure-Python methods."""
+    from magma_kernel.kernel import MagmaKernel
+    return MagmaKernel.__new__(MagmaKernel)
+
+
 class TestDoIsComplete:
-    """Test the keyword balancing logic used in do_is_complete."""
+    """Public-API tests for MagmaKernel.do_is_complete (no Magma required)."""
 
-    def _check(self, code):
-        """Simulate MagmaKernel.do_is_complete without ipykernel."""
-        from magma_kernel.kernel import _STRING_OR_COMMENT_RE, _KEYWORD_RE, _BLOCK_OPENERS, _BLOCK_CLOSERS
+    def test_empty(self, bare_kernel):
+        assert bare_kernel.do_is_complete("")["status"] == "incomplete"
 
-        code = code.strip()
-        if not code:
-            return {"status": "incomplete", "indent": ""}
-        if not code.endswith(";"):
-            return {"status": "incomplete", "indent": "    "}
+    def test_simple_statement(self, bare_kernel):
+        assert bare_kernel.do_is_complete("x := 5;")["status"] == "complete"
 
-        import re
-        stripped = _STRING_OR_COMMENT_RE.sub("", code)
-        depth = 0
-        for m in _KEYWORD_RE.finditer(stripped):
-            kw = re.sub(r"\s+", " ", m.group(1)).lower()
-            if kw in _BLOCK_OPENERS:
-                depth += 1
-            elif kw in _BLOCK_CLOSERS.values():
-                depth -= 1
+    def test_no_semicolon(self, bare_kernel):
+        assert bare_kernel.do_is_complete("x := 5")["status"] == "incomplete"
 
-        if depth == 0:
-            return {"status": "complete"}
-        elif depth > 0:
-            return {"status": "incomplete", "indent": "    "}
-        else:
-            return {"status": "unknown"}
+    def test_balanced_for(self, bare_kernel):
+        assert bare_kernel.do_is_complete("for i in [1..10] do print i; end for;")["status"] == "complete"
 
-    def test_empty(self):
-        assert self._check("")["status"] == "incomplete"
+    def test_unbalanced_for(self, bare_kernel):
+        assert bare_kernel.do_is_complete("for i in [1..10] do print i;")["status"] == "incomplete"
 
-    def test_simple_statement(self):
-        assert self._check("x := 5;")["status"] == "complete"
+    def test_balanced_if(self, bare_kernel):
+        assert bare_kernel.do_is_complete("if true then x := 1; end if;")["status"] == "complete"
 
-    def test_no_semicolon(self):
-        assert self._check("x := 5")["status"] == "incomplete"
+    def test_balanced_while(self, bare_kernel):
+        assert bare_kernel.do_is_complete("while true do break; end while;")["status"] == "complete"
 
-    def test_balanced_for(self):
-        assert self._check("for i in [1..10] do print i; end for;")["status"] == "complete"
+    def test_balanced_function(self, bare_kernel):
+        assert bare_kernel.do_is_complete("function f(x) return x; end function;")["status"] == "complete"
 
-    def test_unbalanced_for(self):
-        assert self._check("for i in [1..10] do print i;")["status"] == "incomplete"
+    def test_balanced_try(self, bare_kernel):
+        assert bare_kernel.do_is_complete("try x := 1/0; catch e end try;")["status"] == "complete"
 
-    def test_balanced_if(self):
-        assert self._check("if true then x := 1; end if;")["status"] == "complete"
+    def test_balanced_case(self, bare_kernel):
+        assert bare_kernel.do_is_complete("case x when 1: y := 1; end case;")["status"] == "complete"
 
-    def test_balanced_while(self):
-        assert self._check("while true do break; end while;")["status"] == "complete"
+    def test_balanced_repeat(self, bare_kernel):
+        assert bare_kernel.do_is_complete("repeat x +:= 1; until x gt 10;")["status"] == "complete"
 
-    def test_balanced_function(self):
-        assert self._check("function f(x) return x; end function;")["status"] == "complete"
-
-    def test_balanced_try(self):
-        assert self._check("try x := 1/0; catch e end try;")["status"] == "complete"
-
-    def test_balanced_case(self):
-        assert self._check("case x when 1: y := 1; end case;")["status"] == "complete"
-
-    def test_balanced_repeat(self):
-        assert self._check("repeat x +:= 1; until x gt 10;")["status"] == "complete"
-
-    def test_nested_blocks(self):
+    def test_nested_blocks(self, bare_kernel):
         code = "for i in [1..5] do if i gt 2 then print i; end if; end for;"
-        assert self._check(code)["status"] == "complete"
+        assert bare_kernel.do_is_complete(code)["status"] == "complete"
 
-    def test_string_with_keyword(self):
-        """Keywords inside strings should be ignored."""
-        assert self._check('x := "for end for";')["status"] == "complete"
+    def test_string_with_keyword(self, bare_kernel):
+        assert bare_kernel.do_is_complete('x := "for end for";')["status"] == "complete"
 
-    def test_comment_with_keyword(self):
-        """Keywords in comments should be ignored."""
-        # Comment at end means code doesn't end with ';', so incomplete
-        assert self._check("x := 1; // for end for")["status"] == "incomplete"
-        # But with a semicolon after the comment-bearing line, keywords
-        # inside comments should not affect balance
-        assert self._check("// for\nx := 1;")["status"] == "complete"
+    def test_line_comment_with_keyword(self, bare_kernel):
+        assert bare_kernel.do_is_complete("x := 1; // for end for")["status"] == "incomplete"
+        assert bare_kernel.do_is_complete("// for\nx := 1;")["status"] == "complete"
 
-    def test_inner_semicolon_incomplete(self):
-        """Inner semicolon with unbalanced block."""
-        assert self._check("for i in [1..10] do\n  print i;")["status"] == "incomplete"
+    def test_block_comment_with_keyword(self, bare_kernel):
+        assert bare_kernel.do_is_complete("/* for */ x := 1;")["status"] == "complete"
 
-    def test_case_expression_not_block(self):
-        """case< expression form should not be counted as a block opener."""
-        assert self._check("y := case< x | 1: 1, else 3 >;")["status"] == "complete"
+    def test_nested_block_comment(self, bare_kernel):
+        assert bare_kernel.do_is_complete("/* /* if */ */ x := 1;")["status"] == "complete"
 
-    def test_case_statement_still_works(self):
-        """case statement form should still be counted as a block opener."""
-        assert self._check("case x when 1: y := 1;")["status"] == "incomplete"
+    def test_inner_semicolon_incomplete(self, bare_kernel):
+        assert bare_kernel.do_is_complete("for i in [1..10] do\n  print i;")["status"] == "incomplete"
+
+    def test_case_expression_not_block(self, bare_kernel):
+        assert bare_kernel.do_is_complete("y := case< x | 1: 1, else 3 >;")["status"] == "complete"
+
+    def test_case_statement_still_works(self, bare_kernel):
+        assert bare_kernel.do_is_complete("case x when 1: y := 1;")["status"] == "incomplete"
 
 
 # ===================================================================
