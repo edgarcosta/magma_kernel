@@ -567,6 +567,10 @@ class TestExtractToken:
         from magma_kernel.kernel import _extract_token
         assert _extract_token("IsPrime", 3) == "IsP"
 
+    def test_scope_qualified(self):
+        from magma_kernel.kernel import _extract_token
+        assert _extract_token("Integers::Bar", 13) == "Integers::Bar"
+
 
 # ===================================================================
 # Magic parsing

@@ -78,7 +78,7 @@ def _strip_block_comments(code):
 def _extract_token(code, cursor_pos):
     """Extract the token at cursor_pos for completion/inspection."""
     token = code[:cursor_pos]
-    for sep in ["\n", ";", " ", "(", ",", ":"]:
+    for sep in ["\n", ";", " ", "(", ","]:
         token = token.rpartition(sep)[-1]
     return token
 
