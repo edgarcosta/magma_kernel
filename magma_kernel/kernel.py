@@ -170,7 +170,9 @@ class MagmaKernel(Kernel):
         if hist_access_type == "tail":
             entries = self._history[-(n or 10):]
         elif hist_access_type == "range":
-            entries = self._history[(start or 0):(stop or len(self._history))]
+            lo = 0 if start is None else start
+            hi = len(self._history) if stop is None else stop
+            entries = self._history[lo:hi]
         elif hist_access_type == "search":
             import fnmatch
             entries = [

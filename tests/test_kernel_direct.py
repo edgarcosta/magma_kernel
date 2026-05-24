@@ -420,6 +420,15 @@ def test_history_range(kernel):
     assert len(result["history"]) == 2
 
 
+def test_history_range_stop_zero(kernel):
+    kernel._history.clear()
+    kernel._history_count = 0
+    kernel.do_execute("a := 1;", silent=False, store_history=True)
+    kernel.do_execute("b := 2;", silent=False, store_history=True)
+    result = kernel.do_history("range", output=False, raw=True, start=0, stop=0)
+    assert result["history"] == []
+
+
 def test_history_search_unique(kernel):
     kernel._history.clear()
     kernel._history_count = 0
