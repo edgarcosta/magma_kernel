@@ -454,6 +454,14 @@ def test_is_complete_too_many_closers(kernel):
     assert result["status"] == "unknown"
 
 
+def test_is_complete_keyword_in_block_comment(kernel):
+    assert kernel.do_is_complete("/* for */ x := 1;")["status"] == "complete"
+
+
+def test_is_complete_nested_block_comment(kernel):
+    assert kernel.do_is_complete("/* /* if */ */ x := 1;")["status"] == "complete"
+
+
 # --- Magics edge cases ---
 
 
