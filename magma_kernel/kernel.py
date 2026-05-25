@@ -568,7 +568,10 @@ class MagmaKernel(Kernel):
         output_parts = []
         cb = MagmaCallbacks(on_stdout=lambda s: output_parts.append(s))
         self.process.send_input(f'Completion("{token_escaped}", {len(token)});')
-        self.process.process_until_ready(cb)
+        result = self.process.process_until_ready(cb)
+        if result.state == MagmaState.DEAD:
+            self.log.warning("Magma process died during completion")
+            return default
 
         raw_output = "".join(output_parts)
         if raw_output.strip() == "DIE":

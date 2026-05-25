@@ -67,6 +67,21 @@ def test_execute_gives_up_on_wedged_debugger(kernel):
     assert reply["status"] in ("error", "abort")
 
 
+def test_do_complete_warns_when_process_dies_mid_call(kernel, caplog):
+    """do_complete should warn and return default when Magma dies during the call."""
+    kernel.process.process_until_ready = lambda cb: ExecutionResult(
+        state=MagmaState.DEAD,
+    )
+
+    with caplog.at_level(logging.WARNING, logger="test_kernel_unit"):
+        result = kernel.do_complete("IsPr", 4)
+
+    assert result["matches"] == []
+    assert any("completion" in rec.message.lower()
+               and ("died" in rec.message.lower() or "dead" in rec.message.lower())
+               for rec in caplog.records)
+
+
 def test_magma_eval_logs_when_process_dies(kernel, caplog):
     """_magma_eval should log a warning if process_until_ready returns DEAD."""
     kernel.process.process_until_ready = lambda cb: ExecutionResult(
