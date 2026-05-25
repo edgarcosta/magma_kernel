@@ -443,8 +443,13 @@ class MagmaKernel(Kernel):
                 return {"status": "abort", "execution_count": self.execution_count}
 
         # Auto-exit debugger, preserving the initial error state.
-        # A single "q" may not suffice for nested debuggers, so loop with
-        # a safety cap; if Magma refuses to leave the debugger, restart it.
+        # In current Magma under -x, a single "q" always exits the debugger
+        # fully and discards buffered input, so the loop body runs once
+        # and the wedge-recovery branch is unreachable — both are kept as
+        # defensive guards in case that ever changes. Only the mocked
+        # tests in test_kernel_unit.py exercise the multi-iteration and
+        # wedge paths; do not try to construct a live nested-debugger
+        # test, it cannot be triggered.
         if result.state == MagmaState.DEBUGGER:
             saved_had_error = result.had_error
             saved_erp = result.erp
