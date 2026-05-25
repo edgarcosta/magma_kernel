@@ -30,6 +30,43 @@ def kernel():
     return k
 
 
+def test_execute_loops_through_nested_debugger(kernel):
+    """If 'q' yields another DRDY, the kernel sends another 'q' and so on."""
+    results = iter([
+        ExecutionResult(state=MagmaState.DEBUGGER, had_error=True),
+        ExecutionResult(state=MagmaState.DEBUGGER),
+        ExecutionResult(state=MagmaState.READY),
+    ])
+    kernel.process.process_until_ready = lambda cb: next(results)
+
+    reply = kernel._execute_code("DebugMe();", silent=False, allow_stdin=False)
+
+    # First DEBUGGER's had_error must be preserved through to the final reply
+    assert reply["status"] == "error"
+    # send_line("q") should have been called exactly twice — once per DEBUGGER
+    q_calls = [c for c in kernel.process.send_line.call_args_list
+               if c.args == ("q",)]
+    assert len(q_calls) == 2
+
+
+def test_execute_gives_up_on_wedged_debugger(kernel):
+    """If Magma stays in DEBUGGER indefinitely, the kernel must not loop forever."""
+    kernel.process.process_until_ready = lambda cb: ExecutionResult(
+        state=MagmaState.DEBUGGER, had_error=True,
+    )
+    # If stop/restart is needed, mock them so the kernel can recover cleanly.
+    kernel.process.stop = MagicMock()
+    kernel._start_magma = MagicMock(side_effect=lambda: setattr(
+        kernel, "process", MagicMock(alive=True),
+    ))
+
+    reply = kernel._execute_code("DebugMe();", silent=False, allow_stdin=False)
+
+    # The reply must be terminal (not stuck in a loop) — error or abort is fine,
+    # but it must come back.
+    assert reply["status"] in ("error", "abort")
+
+
 def test_magma_eval_logs_when_process_dies(kernel, caplog):
     """_magma_eval should log a warning if process_until_ready returns DEAD."""
     kernel.process.process_until_ready = lambda cb: ExecutionResult(

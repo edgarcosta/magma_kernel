@@ -442,15 +442,36 @@ class MagmaKernel(Kernel):
                 self._start_magma()
                 return {"status": "abort", "execution_count": self.execution_count}
 
-        # Auto-exit debugger, preserving the error state
+        # Auto-exit debugger, preserving the initial error state.
+        # A single "q" may not suffice for nested debuggers, so loop with
+        # a safety cap; if Magma refuses to leave the debugger, restart it.
         if result.state == MagmaState.DEBUGGER:
-            had_error = result.had_error
-            erp = result.erp
-            self.process.send_line("q")
-            result = self.process.process_until_ready(callbacks)
-            result.had_error = result.had_error or had_error
-            if erp is not None:
-                result.erp = erp
+            saved_had_error = result.had_error
+            saved_erp = result.erp
+            attempts = 0
+            while result.state == MagmaState.DEBUGGER and attempts < 10:
+                try:
+                    self.process.send_line("q")
+                except OSError:
+                    break
+                result = self.process.process_until_ready(callbacks)
+                attempts += 1
+
+            if result.state == MagmaState.DEBUGGER:
+                self.process.stop(force=True)
+                on_stderr("Magma debugger could not be exited; restarting.\n")
+                self._start_magma()
+                return {
+                    "status": "error",
+                    "execution_count": self.execution_count,
+                    "ename": "MagmaDebuggerStuck",
+                    "evalue": "Could not exit Magma debugger after 10 attempts",
+                    "traceback": [],
+                }
+
+            result.had_error = result.had_error or saved_had_error
+            if saved_erp is not None:
+                result.erp = saved_erp
 
         # Drain stale RDY from interrupt delivered while Magma was idle
         if result.interrupted:
