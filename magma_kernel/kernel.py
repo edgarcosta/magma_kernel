@@ -150,13 +150,19 @@ class MagmaKernel(Kernel):
         self.language_version = lang_version
 
     def _magma_eval(self, code):
-        """Send code to Magma and return (stdout, stderr) strings."""
+        """Send code to Magma and return (stdout, stderr) strings.
+
+        Logs a warning if Magma dies during the call; callers that need
+        to react to a crash should check ``self.process.alive`` afterwards.
+        """
         out, err = [], []
         self.process.send_input(code)
-        self.process.process_until_ready(MagmaCallbacks(
+        result = self.process.process_until_ready(MagmaCallbacks(
             on_stdout=lambda s: out.append(s),
             on_stderr=lambda s: err.append(s),
         ))
+        if result.state == MagmaState.DEAD:
+            self.log.warning("Magma process died during evaluation of: %s", code)
         return "".join(out), "".join(err)
 
     def do_shutdown(self, restart):
