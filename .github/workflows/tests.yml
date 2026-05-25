@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [master, x-protocol]
+    branches: [master, "feat/x-protocol"]
   pull_request:
     branches: [master]
 
@@ -27,7 +27,7 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Run unit tests (no Magma required)
-        run: pytest tests/test_protocol.py tests/test_lexer.py -v -k 'not TestMagmaProcess'
+        run: pytest tests/test_protocol.py tests/test_lexer.py tests/test_kernel_unit.py -v -k 'not TestMagmaProcess'
 
   integration-tests:
     name: Integration tests
