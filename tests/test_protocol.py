@@ -102,6 +102,20 @@ class TestParseLine:
         p = parse_line(raw)
         assert p.tag == Tag.RDI_ER
 
+    def test_dtb_tag(self):
+        raw = bytes([TAG_MARKER]) + b"DTB 0" + bytes([TAG_MARKER]) + b"#0 Foo() at <main>:2"
+        p = parse_line(raw)
+        assert p.tag == Tag.DTB
+        assert p.kind == TagKind.OUTPUT
+        assert p.text == "#0 Foo() at <main>:2"
+
+    def test_de_tag(self):
+        raw = bytes([TAG_MARKER]) + b"DE 0" + bytes([TAG_MARKER]) + b"Unknown command"
+        p = parse_line(raw)
+        assert p.tag == Tag.DE
+        assert p.kind == TagKind.OUTPUT
+        assert p.text == "Unknown command"
+
     # --- Status tags ---
 
     def test_ir_status(self):
@@ -1237,6 +1251,31 @@ class TestMagmaProcess:
                 on_stdout=lambda s: out.append(s),
             ))
             assert "20" in "".join(out)
+        finally:
+            proc.stop(force=True)
+
+    def test_debugger_de_tag_routes_to_stderr(self):
+        """Invalid debugger commands emit DE tags whose text reaches on_stderr."""
+        from magma_kernel.protocol import MagmaCallbacks, MagmaState
+        proc = self._make()
+        try:
+            proc.send_input("SetDebugOnError(true);")
+            proc.process_until_ready(MagmaCallbacks())
+
+            proc.send_input("procedure Boom() error \"x\"; end procedure; Boom();")
+            proc.process_until_ready(MagmaCallbacks(on_stderr=lambda s: None))
+
+            # `list 0` is an invalid count for the list command — Magma emits a DE tag
+            err = []
+            proc.send_line("list 0")
+            r = proc.process_until_ready(MagmaCallbacks(
+                on_stderr=lambda s: err.append(s),
+            ))
+            assert r.state == MagmaState.DEBUGGER
+            assert "must be greater than 0" in "".join(err)
+
+            proc.send_line("q")
+            proc.process_until_ready(MagmaCallbacks())
         finally:
             proc.stop(force=True)
 
