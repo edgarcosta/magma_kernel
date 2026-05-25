@@ -42,6 +42,10 @@ Issues = "https://github.com/edgarcosta/magma_kernel/issues"
 [project.entry-points."pygments.lexers"]
 magma = "magma_kernel.lexer:MagmaLexer"
 
+[tool.hatch.metadata]
+# Allow `tree-sitter-magma @ git+https://...` in [project.dependencies].
+allow-direct-references = true
+
 [tool.hatch.version]
 path = "magma_kernel/__init__.py"
 
