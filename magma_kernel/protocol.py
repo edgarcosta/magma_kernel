@@ -472,7 +472,15 @@ class MagmaProcess:
                         except InputAborted:
                             pass  # interrupt sent; loop reads INT+RDY
                         else:
-                            self.send_line(response)
+                            try:
+                                self.send_line(response)
+                            except OSError as exc:
+                                self._log.warning(
+                                    "Magma died while writing input response: %s", exc
+                                )
+                                self._state = MagmaState.DEAD
+                                result.state = MagmaState.DEAD
+                                return result
                 continue
 
             # --- Status tags ---
@@ -504,7 +512,15 @@ class MagmaProcess:
                     response = callbacks.on_input_request(prompt)
                 except InputAborted:
                     continue  # interrupt sent; loop reads INT+RDY
-                self.send_line(response)
+                try:
+                    self.send_line(response)
+                except OSError as exc:
+                    self._log.warning(
+                        "Magma died while writing input response: %s", exc
+                    )
+                    self._state = MagmaState.DEAD
+                    result.state = MagmaState.DEAD
+                    return result
                 continue
 
             if tag == Tag.QUIT:

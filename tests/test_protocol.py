@@ -649,6 +649,42 @@ class TestMagmaProcessUnit:
         assert result.interrupted
         assert result.state == MagmaState.READY
 
+    def test_send_line_oserror_on_rd_in_returns_dead(self):
+        """BrokenPipeError on RD_IN response should return DEAD, not raise."""
+        proc = MagmaProcess()
+
+        lines = [bytes([TAG_MARKER]) + b"RD_IN"]
+        line_iter = iter(lines)
+        proc._read_line = lambda: next(line_iter, None)
+        proc.send_line = MagicMock(side_effect=BrokenPipeError("pipe closed"))
+        proc._state = MagmaState.RUNNING
+
+        callbacks = MagmaCallbacks(on_input_request=lambda prompt: "42")
+
+        result = proc.process_until_ready(callbacks)
+
+        assert result.state == MagmaState.DEAD
+        assert proc._state == MagmaState.DEAD
+
+    def test_send_line_oserror_on_rdi_er_returns_dead(self):
+        """BrokenPipeError on RDI_ER response should return DEAD, not raise."""
+        proc = MagmaProcess()
+
+        lines = [
+            bytes([TAG_MARKER]) + b"RDI_ER 0" + bytes([TAG_MARKER]) + b"bad input",
+        ]
+        line_iter = iter(lines)
+        proc._read_line = lambda: next(line_iter, None)
+        proc.send_line = MagicMock(side_effect=BrokenPipeError("pipe closed"))
+        proc._state = MagmaState.RUNNING
+
+        callbacks = MagmaCallbacks(on_input_request=lambda prompt: "42")
+
+        result = proc.process_until_ready(callbacks)
+
+        assert result.state == MagmaState.DEAD
+        assert proc._state == MagmaState.DEAD
+
 
 # ===================================================================
 # Live MagmaProcess tests (require Magma on PATH)
