@@ -94,3 +94,30 @@ def test_magma_eval_logs_when_process_dies(kernel, caplog):
     # Should not raise; should produce a warning in the log.
     assert any("died" in rec.message.lower() or "dead" in rec.message.lower()
                for rec in caplog.records)
+
+
+class TestDoCompleteSendInputRaises:
+    """do_complete must return the default reply if send_input raises."""
+
+    def _make_kernel(self):
+        import logging
+        from magma_kernel.kernel import MagmaKernel
+        k = MagmaKernel.__new__(MagmaKernel)
+        # Minimum viable wiring: process is replaced by a stub.
+        class _StubProc:
+            alive = True
+            def send_input(self, payload):
+                raise BrokenPipeError("pipe closed")
+            def process_until_ready(self, cb):
+                raise AssertionError("should not be called")
+        k.process = _StubProc()
+        k.log = logging.getLogger("test")
+        return k
+
+    def test_do_complete_returns_default_on_brokenpipe(self):
+        k = self._make_kernel()
+        reply = k.do_complete("IsPrime", 7)
+        assert reply["status"] == "ok"
+        assert reply["matches"] == []
+        assert reply["cursor_start"] == 0
+        assert reply["cursor_end"] == 7
