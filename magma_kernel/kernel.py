@@ -84,19 +84,22 @@ def _extract_token(code, cursor_pos):
 
 
 def _format_error_position(code, erp):
-    """Build a caret line showing the error position within the input.
+    """Build a caret line showing the parse-stop position within the input.
 
-    *erp* is a 4-tuple ``(start_line, start_col, err_line, err_col)``
-    from the ERP tag (0-based).  Returns a string with the offending
-    source line and a caret pointer, or empty string if positions are
-    out of range.
+    *erp* is a 4-tuple ``(start_line, start_col, stop_line, stop_col)``
+    from the ERP tag (0-based).  Per the Magma -x protocol, the second
+    pair is where parsing stopped after detecting the error, not the
+    precise error location (which would come from a separate ``POS``
+    tag).  Returns a string with the offending source line and a caret
+    pointer at the parse-stop position, or empty string if positions
+    are out of range.
     """
-    _, _, err_line, err_col = erp
+    _, _, stop_line, stop_col = erp
     lines = code.splitlines()
-    if err_line < 0 or err_line >= len(lines):
+    if stop_line < 0 or stop_line >= len(lines):
         return ""
-    src_line = lines[err_line]
-    caret = " " * err_col + "^"
+    src_line = lines[stop_line]
+    caret = " " * stop_col + "^"
     return f"  {src_line}\n  {caret}\n"
 
 
@@ -507,12 +510,12 @@ class MagmaKernel(Kernel):
             if result.erp is not None:
                 erp = result.erp
                 if _erp_col_offset and len(erp) >= 4:
-                    sl, sc, el, ec = erp[:4]
+                    sl, sc, stop_l, stop_c = erp[:4]
                     if sl == 0:
                         sc = max(0, sc - _erp_col_offset)
-                    if el == 0:
-                        ec = max(0, ec - _erp_col_offset)
-                    erp = (sl, sc, el, ec) + erp[4:]
+                    if stop_l == 0:
+                        stop_c = max(0, stop_c - _erp_col_offset)
+                    erp = (sl, sc, stop_l, stop_c) + erp[4:]
                 pos_text = _format_error_position(src, erp)
                 if pos_text:
                     tb_lines.append(pos_text)
