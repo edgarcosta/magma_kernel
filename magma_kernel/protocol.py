@@ -568,11 +568,21 @@ class MagmaProcess:
         ``process_until_ready`` to return immediately with no output.
         This method sends a no-op input and repeats until the response
         is non-interrupted, consuming all stale sequences.
+
+        Safe to call on a dead or broken process: returns silently if the
+        process is gone, and swallows ``OSError`` / ``RuntimeError`` from
+        ``send_input`` (broken pipe, ``_proc is None``).
         """
         logger = log or self._log
+        if not self.alive:
+            return
         for _ in range(10):
-            self.send_input("_ := 0;")
-            r = self.process_until_ready(MagmaCallbacks())
+            try:
+                self.send_input("_ := 0;")
+                r = self.process_until_ready(MagmaCallbacks())
+            except (OSError, RuntimeError) as exc:
+                logger.debug("drain_stale_responses: process gone (%s)", exc)
+                return
             if not r.interrupted:
                 return
             logger.debug("Drained stale interrupt response")

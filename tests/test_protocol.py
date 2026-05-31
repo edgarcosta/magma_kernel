@@ -1300,3 +1300,29 @@ class TestMagmaProcess:
         proc = MagmaProcess(magma_path="/bin/true")
         with pytest.raises(RuntimeError, match="died during startup"):
             proc.start()
+
+
+class TestDrainStaleResponsesDead:
+    """drain_stale_responses must not raise when the process is dead."""
+
+    def test_drain_silent_when_proc_is_none(self):
+        from magma_kernel.protocol import MagmaProcess
+        proc = MagmaProcess()
+        # Never call start(); _proc is None.
+        proc.drain_stale_responses()  # must not raise
+
+    def test_drain_silent_when_send_input_raises_brokenpipe(self, monkeypatch):
+        from magma_kernel.protocol import MagmaProcess
+        proc = MagmaProcess()
+
+        class _Dummy:
+            returncode = 0
+            def poll(self_inner):
+                return None  # appears alive
+        proc._proc = _Dummy()
+
+        def boom(*a, **kw):
+            raise BrokenPipeError("pipe closed")
+        monkeypatch.setattr(proc, "send_input", boom)
+
+        proc.drain_stale_responses()  # must not raise
