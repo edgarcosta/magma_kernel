@@ -25,6 +25,12 @@ EOT_BYTE = 0x04         # end-of-input-set byte
 CONT_BYTE = ord("C")    # continuation flag
 INDENT_WIDTH = 4        # spaces per indent level
 _BUF_SIZE = 4096        # read buffer size
+STARTUP_TIMEOUT = 30.0  # seconds to wait for first RDY during start()
+
+
+class MagmaStartupTimeout(RuntimeError):
+    """Raised when ``MagmaProcess.start()`` does not see RDY in time."""
+
 
 # ---------------------------------------------------------------------------
 # Enums and tag table
@@ -280,13 +286,21 @@ class MagmaCallbacks:
 class MagmaProcess:
     """Manages a ``magma -x`` child process and the tagged protocol."""
 
-    def __init__(self, magma_path: str = "magma", logger: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        magma_path: str = "magma",
+        logger: Optional[logging.Logger] = None,
+        startup_timeout: Optional[float] = None,
+    ):
         self._magma_path = magma_path
         self._log = logger or logging.getLogger(__name__)
         self._proc: Optional[subprocess.Popen] = None
         self._buf = bytearray()
         self._state = MagmaState.STARTING
         self._stderr_thread: Optional[threading.Thread] = None
+        self._startup_timeout = (
+            STARTUP_TIMEOUT if startup_timeout is None else startup_timeout
+        )
 
     @property
     def alive(self) -> bool:
@@ -319,10 +333,20 @@ class MagmaProcess:
         self._stderr_thread.start()
 
         # Read startup output until first RDY
+        deadline = monotonic() + self._startup_timeout
         banner_acc = OutputAccumulator()
         while True:
-            raw = self._read_line()
+            raw = self._read_line(deadline=deadline)
             if raw is None:
+                if self.alive and monotonic() >= deadline:
+                    self._state = MagmaState.DEAD
+                    self.stop(force=True)
+                    raise MagmaStartupTimeout(
+                        f"Magma did not reach RDY within "
+                        f"{self._startup_timeout:.1f}s. "
+                        "Check license server, network, or "
+                        "MAGMA_PATH."
+                    )
                 self._state = MagmaState.DEAD
                 raise RuntimeError(
                     "Magma process died during startup. "
@@ -346,12 +370,14 @@ class MagmaProcess:
 
         return banner_acc.flush()
 
-    def _read_line(self) -> Optional[bytes]:
+    def _read_line(self, deadline: Optional[float] = None) -> Optional[bytes]:
         """Read one newline-terminated line from the child's stdout.
 
         Uses manual buffering with ``os.read`` to avoid issues with
         Python's ``BufferedReader`` around signal interruption.
-        Returns ``None`` on EOF.
+        Returns ``None`` on EOF or, if ``deadline`` is set, on timeout
+        (callers must check ``monotonic() >= deadline`` to
+        distinguish).
         """
         if self._proc is None:
             return None
@@ -362,6 +388,13 @@ class MagmaProcess:
                 line = bytes(self._buf[:idx])
                 del self._buf[:idx + 1]
                 return line
+            if deadline is not None:
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    return None
+                rlist, _, _ = select.select([fd], [], [], remaining)
+                if not rlist:
+                    return None  # timeout
             try:
                 chunk = os.read(fd, _BUF_SIZE)
             except OSError:

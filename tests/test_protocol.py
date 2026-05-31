@@ -1326,3 +1326,33 @@ class TestDrainStaleResponsesDead:
         monkeypatch.setattr(proc, "send_input", boom)
 
         proc.drain_stale_responses()  # must not raise
+
+
+FAKE_MAGMA_HANG = """\
+import time
+# Pretend to be magma -x: write nothing, sleep forever.
+while True:
+    time.sleep(3600)
+"""
+
+
+class TestStartupTimeout:
+    """start() must fail fast when Magma never reaches RDY."""
+
+    def test_start_raises_on_hang(self, tmp_path):
+        import sys, stat, time
+        from magma_kernel.protocol import MagmaProcess, MagmaStartupTimeout
+
+        script = tmp_path / "fake_magma"
+        script.write_text(f"#!{sys.executable}\n{FAKE_MAGMA_HANG}")
+        script.chmod(script.stat().st_mode | stat.S_IXUSR)
+
+        proc = MagmaProcess(magma_path=str(script), startup_timeout=0.5)
+        t0 = time.monotonic()
+        try:
+            with pytest.raises(MagmaStartupTimeout):
+                proc.start()
+        finally:
+            proc.stop(force=True)
+        # Must fail fast, not after the full 3600s sleep.
+        assert time.monotonic() - t0 < 5.0
