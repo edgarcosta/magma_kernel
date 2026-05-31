@@ -12,7 +12,7 @@ dynamic = [
 description="A Magma kernel for Jupyter"
 authors=[{name = "Edgar Costa", email = "edgarc@mit.edu"}]
 license={text = "BSD License"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords=["magma", "kernel", "jupyter"]
 readme = "README.md"
 classifiers=[

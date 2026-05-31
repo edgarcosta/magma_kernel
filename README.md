@@ -25,7 +25,7 @@ A Jupyter kernel for the [Magma computer algebra system](http://magma.maths.usyd
 ## Prerequisites
 
 - [Magma](http://magma.maths.usyd.edu.au/) installed and available on your `PATH` (or set `MAGMA_PATH`)
-- Python 3.9+
+- Python 3.10+
 - [Jupyter](https://jupyter.org/)
 
 ## Installation
